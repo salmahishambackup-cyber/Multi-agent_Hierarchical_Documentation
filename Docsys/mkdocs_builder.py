@@ -1,8 +1,19 @@
 from __future__ import annotations
 
+import warnings
 import subprocess
 from pathlib import Path
 from typing import Optional
+
+
+# DEPRECATED: This module is kept for backward compatibility only.
+# MkDocs HTML generation is no longer the recommended output format.
+warnings.warn(
+    "mkdocs_builder is deprecated and will be removed in a future version. "
+    "Use the new README generation instead for cleaner documentation.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 def mkdocs_build_optional(cfg, mkdocs_root: str) -> Optional[str]:

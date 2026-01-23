@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import Any, Dict
 
@@ -7,6 +8,16 @@ from jinja2 import Environment, FileSystemLoader
 
 from Utils.ToolBox.io_tools import ensure_dir, write_json, read_json
 from Utils.ToolBox.artifact_loader import load_project_artifacts
+
+
+# DEPRECATED: This module is kept for backward compatibility only.
+# Use the new build_readme.py for cleaner artifact-driven documentation.
+warnings.warn(
+    "build_docs_site is deprecated and will be removed in a future version. "
+    "Use build_readme.py instead for artifact-driven documentation.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 def build_docs_site(cfg, stage_a: Dict[str, Any]) -> Dict[str, Any]:
