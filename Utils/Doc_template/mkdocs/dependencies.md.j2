@@ -1,0 +1,15 @@
+# Dependencies
+
+## Internal edges (from `dependencies_normalized.json`)
+{% for e in deps.data.edges %}
+{% if e.to.startswith("internal:") %}
+- `{{ e.from }}` → `{{ e.to.split("internal:", 1)[1] }}`
+{% endif %}
+{% endfor %}
+
+## External edges
+{% for e in deps.data.edges %}
+{% if e.to.startswith("external:") %}
+- `{{ e.from }}` → `{{ e.to }}`
+{% endif %}
+{% endfor %}

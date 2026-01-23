@@ -1,0 +1,11 @@
+# Architecture Overview
+
+## Components (from `components.json`)
+{% for c in components.data %}
+### {{ c.component_id }} (confidence: {{ c.confidence }})
+- Hypothesis: {{ c.hypothesis }}
+- Files:
+{% for f in c.files %}
+  - `{{ f }}`
+{% endfor %}
+{% endfor %}

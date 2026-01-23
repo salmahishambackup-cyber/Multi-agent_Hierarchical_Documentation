@@ -1,0 +1,23 @@
+# {{ module.module_name }}
+
+## Module docstring
+```text
+{{ module.docstring }}
+```
+
+## Symbols
+{% for s in module.symbols %}
+### {{ s.fqname }}
+
+```text
+{{ s.docstring }}
+```
+
+{% if s.validation_issues and (s.validation_issues|length) > 0 %}
+**Validation issues**
+{% for issue in s.validation_issues %}
+- {{ issue }}
+{% endfor %}
+{% endif %}
+
+{% endfor %}

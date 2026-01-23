@@ -1,0 +1,11 @@
+# {{ project_key }} Documentation
+
+## Overview
+This documentation was generated automatically using:
+- Structural artifacts (AST + dependency graph + components)
+- Generated Google-style docstrings (no-import rendering)
+
+## Modules
+{% for m in doc_artifacts.modules %}
+- **{{ m.module_name }}** — {{ (m.docstring.splitlines()|select('string')|list|first)|default('') }}
+{% endfor %}
