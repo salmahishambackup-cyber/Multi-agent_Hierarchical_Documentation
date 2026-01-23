@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Literal, Optional
+
+
+DocstringMode = Literal["none", "modules_only", "symbols_and_modules"]
 
 
 @dataclass
@@ -16,7 +19,23 @@ class PipelineConfig:
     device: str = "auto"
     dtype: str = "auto"
 
-    llm_params: Dict[str, Any] = field(default_factory=dict)
+    # New: per-role LLM params
+    llm_params_by_role: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    
+    # Backward compatibility: single llm_params (falls back to llm_params_by_role["default"])
+    @property
+    def llm_params(self) -> Dict[str, Any]:
+        """Backward-compatible accessor for llm_params."""
+        return self.llm_params_by_role.get("default", {})
+    
+    @llm_params.setter
+    def llm_params(self, value: Dict[str, Any]) -> None:
+        """Backward-compatible setter for llm_params."""
+        self.llm_params_by_role["default"] = value
+    
+    # Docstring generation mode
+    docstring_mode: DocstringMode = "modules_only"
+    
     insert_docstrings: bool = False
     debug: bool = True
 

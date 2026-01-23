@@ -9,8 +9,12 @@ accelerate>=0.33.0
 torch
 sentencepiece>=0.2.0
 
+# Optional: 4-bit quantization for GPU memory efficiency (T4 Colab)
+# Uncomment or install separately if using quantize=True
+# bitsandbytes>=0.41.0
+
 # Optional: insert docstrings in-place (only used if enabled)
 libcst>=1.4.0
 
-# Optional: build static HTML docs
-mkdocs-material>=9.5
+# Optional: build static HTML docs (deprecated, kept for backward compat)
+# mkdocs-material>=9.5
