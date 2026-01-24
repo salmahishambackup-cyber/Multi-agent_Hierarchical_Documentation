@@ -70,13 +70,17 @@ class Analyzer:
         ast_path = self.artifacts_dir / "ast.json"
         write_json(ast_path, ast_data)
         
-        # Build dependency graph
-        deps_data = build_dependency_graph(ast_data, str(self.repo_path))
+        # Build dependency graph (convert dict to list)
+        ast_list = list(ast_data.values())
+        raw_deps_data = build_dependency_graph(ast_list, str(self.repo_path))
+        
+        # Transform to expected format
+        deps_data = self._transform_dependencies(raw_deps_data)
         deps_path = self.artifacts_dir / "dependencies_normalized.json"
         write_json(deps_path, deps_data)
         
-        # Extract components
-        components_data = extract_components(ast_data, deps_data)
+        # Extract components (also needs list)
+        components_data = extract_components(ast_list, raw_deps_data)
         components_path = self.artifacts_dir / "components.json"
         write_json(components_path, components_data)
         
@@ -131,3 +135,43 @@ class Analyzer:
                 files.append(py_file)
         
         return files
+    
+    def _transform_dependencies(self, raw_deps: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Transform dependency graph format to expected format.
+        
+        Args:
+            raw_deps: {"nodes": [...], "edges": [...]}
+            
+        Returns:
+            {"internal_dependencies": {...}, "external_dependencies": {...}}
+        """
+        from collections import defaultdict
+        
+        internal_deps = defaultdict(list)
+        external_deps = defaultdict(list)
+        
+        for edge in raw_deps.get("edges", []):
+            from_file = edge.get("from")
+            to_file = edge.get("to")
+            kind = edge.get("kind", "")
+            
+            if not from_file or not to_file:
+                continue
+            
+            # Check if it's an internal or external dependency
+            if kind in ["internal", "cross_language"]:
+                internal_deps[from_file].append(to_file)
+            elif kind in ["external", "runtime"]:
+                # Extract module name from external dependencies
+                if to_file.startswith("external:"):
+                    module = to_file.replace("external:", "")
+                    external_deps[from_file].append(module)
+                else:
+                    external_deps[from_file].append(to_file)
+        
+        return {
+            "internal_dependencies": dict(internal_deps),
+            "external_dependencies": dict(external_deps),
+            "raw_graph": raw_deps,  # Keep original for reference
+        }

@@ -215,3 +215,18 @@ def aggregate_repository_metrics(ast_summaries_with_metrics: List[Dict]) -> Dict
         "size_distribution": size_dist,
         "complexity_distribution": complexity_dist
     }
+
+
+def compute_file_metrics(ast_summary: dict, content: bytes, language: str) -> Dict[str, Any]:
+    """
+    Convenience function to compute file metrics.
+    
+    Args:
+        ast_summary: AST summary dict
+        content: File content as bytes
+        language: Language of the file
+        
+    Returns:
+        Dictionary with file metrics
+    """
+    return FileMetricsExtractor.extract_metrics(ast_summary, content, language)

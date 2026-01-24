@@ -40,7 +40,8 @@ FUNCTION_NODES = {
 # -------------------------------
 def make_ast_node_id(file_path: str, node) -> str:
     return f"ast:{file_path}:{node.start_byte}:{node.end_byte}"
-0
+
+
 def extract_text(node, source: bytes) -> str | None:
     try:
         return source[node.start_byte:node.end_byte].decode(
