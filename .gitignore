@@ -34,6 +34,7 @@ env/
 
 # Artifacts and cache
 Artifacts/cache/
+artifacts/
 *.jsonl
 
 # MkDocs build output (deprecated)
