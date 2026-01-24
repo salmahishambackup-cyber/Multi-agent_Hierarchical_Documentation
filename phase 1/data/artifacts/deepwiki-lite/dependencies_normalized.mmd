@@ -1,0 +1,56 @@
+graph TD
+  classDef internal fill:#e3f2fd,stroke:#1e88e5,stroke-width:1px;
+  classDef runtime fill:#f1f8e9,stroke:#7cb342,stroke-width:1px;
+  classDef external fill:#fff3e0,stroke:#fb8c00,stroke-width:1px;
+  src_pipeline_py -->|internal_module| internal_src_data_loader_py
+  src_pipeline_py["src/pipeline.py"]
+  internal_src_data_loader_py["src/data_loader.py"]
+  class internal_src_data_loader_py internal;
+  src_pipeline_py -->|internal_module| internal_src_processor_py
+  src_pipeline_py["src/pipeline.py"]
+  internal_src_processor_py["src/processor.py"]
+  class internal_src_processor_py internal;
+  tools_build_artifacts_py -->|language_runtime| runtime_collections
+  tools_build_artifacts_py["tools/build_artifacts.py"]
+  runtime_collections["collections"]
+  class runtime_collections runtime;
+  tools_build_artifacts_py -->|language_runtime| runtime_json
+  tools_build_artifacts_py["tools/build_artifacts.py"]
+  runtime_json["json"]
+  class runtime_json runtime;
+  tools_build_artifacts_py -->|language_runtime| runtime_pathlib
+  tools_build_artifacts_py["tools/build_artifacts.py"]
+  runtime_pathlib["pathlib"]
+  class runtime_pathlib runtime;
+  tools_build_artifacts_py -->|language_runtime| runtime_re
+  tools_build_artifacts_py["tools/build_artifacts.py"]
+  runtime_re["re"]
+  class runtime_re runtime;
+  tools_extract_symbols_ast_py -->|external_library| external_ast
+  tools_extract_symbols_ast_py["tools/extract_symbols_ast.py"]
+  external_ast["ast"]
+  class external_ast external;
+  tools_extract_symbols_ast_py -->|language_runtime| runtime_json
+  tools_extract_symbols_ast_py["tools/extract_symbols_ast.py"]
+  runtime_json["json"]
+  class runtime_json runtime;
+  tools_extract_symbols_ast_py -->|language_runtime| runtime_pathlib
+  tools_extract_symbols_ast_py["tools/extract_symbols_ast.py"]
+  runtime_pathlib["pathlib"]
+  class runtime_pathlib runtime;
+  tools_extract_symbols_ast_py -->|language_runtime| runtime_re
+  tools_extract_symbols_ast_py["tools/extract_symbols_ast.py"]
+  runtime_re["re"]
+  class runtime_re runtime;
+  tools_extract_symbols_ast_py -->|language_runtime| runtime_typing
+  tools_extract_symbols_ast_py["tools/extract_symbols_ast.py"]
+  runtime_typing["typing"]
+  class runtime_typing runtime;
+  tools_generate_docstrings_py -->|language_runtime| runtime_json
+  tools_generate_docstrings_py["tools/generate_docstrings.py"]
+  runtime_json["json"]
+  class runtime_json runtime;
+  tools_generate_docstrings_py -->|language_runtime| runtime_pathlib
+  tools_generate_docstrings_py["tools/generate_docstrings.py"]
+  runtime_pathlib["pathlib"]
+  class runtime_pathlib runtime;

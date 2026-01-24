@@ -1,0 +1,176 @@
+{
+  "metadata": {
+    "agent": "StructuralAgent",
+    "stage": "components",
+    "determinism_report": {
+      "timestamp": "2026-01-24T20:04:18.388478",
+      "versions": {
+        "python": "3.12.12",
+        "tree-sitter": "unknown",
+        "all_compatible": true
+      },
+      "artifact_hashes": {
+        "ast": {
+          "hash": "0a8d67e7a60c0cde258b32141710cede99181f958fc0cc9e91871055c083b045",
+          "hash_type": "sha256",
+          "timestamp": "2026-01-24T20:04:18.388699"
+        },
+        "dependencies": {
+          "hash": "f3cb0b09f72e7c9a7dd009a11193e649514fe57ce5757c4c1b063f5131df28b0",
+          "hash_type": "sha256",
+          "timestamp": "2026-01-24T20:04:18.388794"
+        },
+        "components": {
+          "hash": "54d5055dc021ac3cdd7ee7f2bd2ded65cdd9e26e361b99dd36b2bb0e83392093",
+          "hash_type": "sha256",
+          "timestamp": "2026-01-24T20:04:18.388844"
+        }
+      }
+    },
+    "edge_case_analysis": {
+      "circular_imports": {
+        "total_cycles": 0,
+        "cycles": [],
+        "status": "✓ No circular dependencies detected"
+      },
+      "monolithic_files": {
+        "total_monolithic": 0,
+        "files": [],
+        "status": "✓ No monolithic files detected"
+      },
+      "generated_files": {
+        "total_generated": 0,
+        "files": [],
+        "status": "✓ No generated code detected"
+      },
+      "summary": {
+        "edge_cases_detected": false,
+        "total_issues": 0,
+        "issue_breakdown": [
+          "No edge cases detected"
+        ]
+      }
+    }
+  },
+  "timestamp": "2026-01-24T20:04:18.408103",
+  "data": [
+    {
+      "cohesion": {
+        "confidence": 0.9,
+        "cross_language_edges": 0,
+        "density": 0.333,
+        "edge_breakdown": {
+          "cross_language": 0,
+          "external": 0,
+          "same_language": 2
+        },
+        "external_edges": 0,
+        "internal_edges": 2
+      },
+      "component_id": "C_a09a56a4",
+      "confidence": 0.9,
+      "evidence": [
+        "Internal dependencies: 2",
+        "Cross-language dependencies: 0",
+        "External dependencies: 0",
+        "Cohesion density: 0.333"
+      ],
+      "files": [
+        "src/data_loader.py",
+        "src/pipeline.py",
+        "src/processor.py"
+      ],
+      "hypothesis": "Semantic component: 3 interconnected files (python)",
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "cohesion": {
+        "confidence": 0.3,
+        "cross_language_edges": 0,
+        "density": 0,
+        "edge_breakdown": {
+          "cross_language": 0,
+          "external": 0,
+          "same_language": 0
+        },
+        "external_edges": 0,
+        "internal_edges": 0
+      },
+      "component_id": "C_81177c9c",
+      "confidence": 0.3,
+      "evidence": [
+        "Internal dependencies: 0",
+        "Cross-language dependencies: 0",
+        "External dependencies: 0",
+        "Cohesion density: 0"
+      ],
+      "files": [
+        "tools/extract_symbols_ast.py"
+      ],
+      "hypothesis": "Semantic component: 1 interconnected files (python)",
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "cohesion": {
+        "confidence": 0.3,
+        "cross_language_edges": 0,
+        "density": 0,
+        "edge_breakdown": {
+          "cross_language": 0,
+          "external": 0,
+          "same_language": 0
+        },
+        "external_edges": 0,
+        "internal_edges": 0
+      },
+      "component_id": "C_5510c8dd",
+      "confidence": 0.3,
+      "evidence": [
+        "Internal dependencies: 0",
+        "Cross-language dependencies: 0",
+        "External dependencies: 0",
+        "Cohesion density: 0"
+      ],
+      "files": [
+        "tools/generate_docstrings.py"
+      ],
+      "hypothesis": "Semantic component: 1 interconnected files (python)",
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "cohesion": {
+        "confidence": 0.3,
+        "cross_language_edges": 0,
+        "density": 0,
+        "edge_breakdown": {
+          "cross_language": 0,
+          "external": 0,
+          "same_language": 0
+        },
+        "external_edges": 0,
+        "internal_edges": 0
+      },
+      "component_id": "C_53e1a22d",
+      "confidence": 0.3,
+      "evidence": [
+        "Internal dependencies: 0",
+        "Cross-language dependencies: 0",
+        "External dependencies: 0",
+        "Cohesion density: 0"
+      ],
+      "files": [
+        "tools/build_artifacts.py"
+      ],
+      "hypothesis": "Semantic component: 1 interconnected files (python)",
+      "languages": [
+        "python"
+      ]
+    }
+  ]
+}
