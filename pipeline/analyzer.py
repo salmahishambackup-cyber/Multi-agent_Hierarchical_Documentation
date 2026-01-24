@@ -1,0 +1,133 @@
+"""
+Phase 1: Static code analysis using tree-sitter (no LLM).
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Dict, Any, List
+import json
+
+from analyzer import (
+    extract_ast_info,
+    build_dependency_graph,
+    extract_components,
+    detect_language,
+)
+from utils import write_json, ensure_dir
+from utils.profiler import profile_phase
+
+
+class Analyzer:
+    """
+    Phase 1: Project analysis using tree-sitter.
+    Generates ast.json, dependencies_normalized.json, components.json.
+    """
+    
+    def __init__(self, repo_path: str, artifacts_dir: str):
+        """
+        Initialize analyzer.
+        
+        Args:
+            repo_path: Path to repository to analyze
+            artifacts_dir: Directory to save artifacts
+        """
+        self.repo_path = Path(repo_path).resolve()
+        self.artifacts_dir = Path(artifacts_dir).resolve()
+        ensure_dir(self.artifacts_dir)
+    
+    @profile_phase("Phase 1: Analysis")
+    def run(self) -> Dict[str, Any]:
+        """
+        Run static analysis on repository.
+        
+        Returns:
+            Dictionary with paths to generated artifacts and summary stats
+        """
+        # Find all Python files
+        python_files = self._find_python_files()
+        
+        print(f"Found {len(python_files)} Python files")
+        
+        # Extract AST info for each file
+        ast_data = {}
+        all_modules = []
+        
+        for file_path in python_files:
+            rel_path = file_path.relative_to(self.repo_path).as_posix()
+            
+            try:
+                content = file_path.read_bytes()
+                ast_info = extract_ast_info(str(file_path), content, str(self.repo_path))
+                
+                if ast_info:
+                    ast_data[rel_path] = ast_info
+                    all_modules.append(rel_path)
+            except Exception as e:
+                print(f"Warning: Failed to parse {rel_path}: {e}")
+        
+        # Save AST artifact
+        ast_path = self.artifacts_dir / "ast.json"
+        write_json(ast_path, ast_data)
+        
+        # Build dependency graph
+        deps_data = build_dependency_graph(ast_data, str(self.repo_path))
+        deps_path = self.artifacts_dir / "dependencies_normalized.json"
+        write_json(deps_path, deps_data)
+        
+        # Extract components
+        components_data = extract_components(ast_data, deps_data)
+        components_path = self.artifacts_dir / "components.json"
+        write_json(components_path, components_data)
+        
+        # Summary stats
+        total_functions = sum(
+            len(info.get("functions", [])) for info in ast_data.values()
+        )
+        total_classes = sum(
+            len(info.get("classes", [])) for info in ast_data.values()
+        )
+        
+        print(f"✅ {len(all_modules)} modules, {total_functions} functions, {total_classes} classes")
+        
+        return {
+            "ast_path": str(ast_path),
+            "deps_path": str(deps_path),
+            "components_path": str(components_path),
+            "stats": {
+                "modules": len(all_modules),
+                "functions": total_functions,
+                "classes": total_classes,
+            },
+            "ast_data": ast_data,
+            "deps_data": deps_data,
+            "components_data": components_data,
+        }
+    
+    def _find_python_files(self) -> List[Path]:
+        """Find all Python files in repository."""
+        files = []
+        
+        # Common patterns to exclude
+        exclude_patterns = [
+            "__pycache__",
+            ".git",
+            ".venv",
+            "venv",
+            "env",
+            "build",
+            "dist",
+            ".eggs",
+            "*.egg-info",
+        ]
+        
+        for py_file in self.repo_path.rglob("*.py"):
+            # Check if file should be excluded
+            should_exclude = any(
+                pattern in str(py_file) for pattern in exclude_patterns
+            )
+            
+            if not should_exclude:
+                files.append(py_file)
+        
+        return files
