@@ -180,6 +180,12 @@ class DocstringGenerator:
             content = full_path.read_bytes()
             start = func_info.get("start_byte", 0)
             end = func_info.get("end_byte", len(content))
+            
+            # Limit extraction to reasonable size (10KB max)
+            MAX_CODE_SIZE = 10000
+            if end - start > MAX_CODE_SIZE:
+                end = start + MAX_CODE_SIZE
+            
             code = content[start:end].decode("utf-8", errors="ignore")
         except Exception:
             return {"name": func_info.get("name", "unknown"), "error": "Could not read function"}
@@ -221,6 +227,12 @@ class DocstringGenerator:
             content = full_path.read_bytes()
             start = class_info.get("start_byte", 0)
             end = class_info.get("end_byte", len(content))
+            
+            # Limit extraction to reasonable size (10KB max)
+            MAX_CODE_SIZE = 10000
+            if end - start > MAX_CODE_SIZE:
+                end = start + MAX_CODE_SIZE
+            
             code = content[start:end].decode("utf-8", errors="ignore")
             
             # Limit to first 20 lines to avoid too much context

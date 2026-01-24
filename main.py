@@ -14,6 +14,9 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 from chat import Assistant
 
+# Default model configuration
+DEFAULT_MODEL = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+
 
 def main():
     """Main entry point."""
@@ -38,8 +41,8 @@ Examples:
     
     parser.add_argument(
         "--model",
-        default="Qwen/Qwen2.5-Coder-1.5B-Instruct",
-        help="HuggingFace model ID (default: Qwen/Qwen2.5-Coder-1.5B-Instruct)",
+        default=DEFAULT_MODEL,
+        help=f"HuggingFace model ID (default: {DEFAULT_MODEL})",
     )
     
     parser.add_argument(

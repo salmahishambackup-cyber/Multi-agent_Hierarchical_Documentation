@@ -29,6 +29,8 @@ class LLMClient:
         max_new_tokens: int = 512,
         temperature: float = 0.1,
         top_p: float = 0.95,
+        bnb_4bit_compute_dtype: str = "float16",
+        bnb_4bit_quant_type: str = "nf4",
     ):
         """
         Initialize LLM client.
@@ -42,6 +44,8 @@ class LLMClient:
             max_new_tokens: Maximum output tokens
             temperature: Generation temperature
             top_p: Top-p sampling
+            bnb_4bit_compute_dtype: Compute dtype for 4-bit (float16/bfloat16)
+            bnb_4bit_quant_type: Quantization type (nf4/fp4)
         """
         self.model_id = model_id
         self.max_input_tokens = max_input_tokens
@@ -55,11 +59,12 @@ class LLMClient:
         # Configure quantization
         quantization_config = None
         if quantize:
+            compute_dtype = getattr(torch, bnb_4bit_compute_dtype)
             quantization_config = BitsAndBytesConfig(
                 load_in_4bit=True,
-                bnb_4bit_compute_dtype=torch.float16,
+                bnb_4bit_compute_dtype=compute_dtype,
                 bnb_4bit_use_double_quant=True,
-                bnb_4bit_quant_type="nf4",
+                bnb_4bit_quant_type=bnb_4bit_quant_type,
             )
         
         # Load tokenizer
