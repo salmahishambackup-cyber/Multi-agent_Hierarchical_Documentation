@@ -4,7 +4,8 @@ from typing import Dict, Any, List
 from pathlib import Path
 from tqdm import tqdm
 
-from agents.base_agent import BaseAgent
+# Don't import BaseAgent to avoid torch import issues
+# from agents.base_agent import BaseAgent
 from analyzer import (
     extract_ast_info,
     build_dependency_graph,
@@ -22,7 +23,7 @@ from utils.schema_validator import validate_all_outputs
 from utils.path_utils import normalize_path
 
 
-class StructuralAgent(BaseAgent):
+class StructuralAgent:
     """
     Phase 1: Static code analysis agent.
     
@@ -58,7 +59,9 @@ class StructuralAgent(BaseAgent):
             enable_edge_case_detection: Enable edge case detection
             enable_validation: Enable output validation
         """
-        super().__init__(repo_path, artifacts_dir)
+        self.repo_path = Path(repo_path).resolve()
+        self.artifacts_dir = Path(artifacts_dir).resolve()
+        self.artifacts_dir.mkdir(parents=True, exist_ok=True)
         
         self.enable_performance_monitoring = enable_performance_monitoring
         self.enable_edge_case_detection = enable_edge_case_detection
@@ -290,6 +293,18 @@ class StructuralAgent(BaseAgent):
                 print(f"  - {len(report.generated_files)} generated file(s)")
         
         return report
+    
+    def get_artifact_path(self, filename: str) -> Path:
+        """
+        Get path for an artifact file.
+        
+        Args:
+            filename: Name of the artifact file
+            
+        Returns:
+            Full path to artifact
+        """
+        return self.artifacts_dir / filename
     
     def _save_artifacts(
         self,

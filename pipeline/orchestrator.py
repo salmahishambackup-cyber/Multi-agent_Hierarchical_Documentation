@@ -13,6 +13,8 @@ from pipeline.readme_generator import ReadmeGenerator
 from pipeline.validator import Validator
 from pipeline.evaluator import Evaluator
 from agents import Writer, Critic
+# Import StructuralAgent directly to avoid torch import issues in agents/__init__.py
+from agents.structural_agent import StructuralAgent
 from utils.llm_client import LLMClient
 from utils import ensure_dir
 
@@ -29,6 +31,7 @@ class Orchestrator:
         model_id: str = "Qwen/Qwen2.5-Coder-1.5B-Instruct",
         device: str = "auto",
         quantize: bool = True,
+        use_structural_agent: bool = True,
     ):
         """
         Initialize orchestrator.
@@ -39,11 +42,13 @@ class Orchestrator:
             model_id: HuggingFace model ID
             device: Device (auto/cpu/cuda)
             quantize: Use 4-bit quantization
+            use_structural_agent: Use enhanced StructuralAgent for Phase 1 (default: True)
         """
         self.repo_path = Path(repo_path).resolve()
         self.project_name = self.repo_path.name
         self.artifacts_dir = Path(artifacts_dir).resolve()
         self.cache_dir = self.artifacts_dir / "cache"
+        self.use_structural_agent = use_structural_agent
         
         ensure_dir(self.artifacts_dir)
         ensure_dir(self.cache_dir)
@@ -74,10 +79,21 @@ class Orchestrator:
         """Run Phase 1: Static analysis."""
         print("\n━━━ PHASE 1: Analysis ━━━")
         
-        analyzer = Analyzer(
-            repo_path=str(self.repo_path),
-            artifacts_dir=str(self.artifacts_dir),
-        )
+        if self.use_structural_agent:
+            # Use enhanced StructuralAgent
+            analyzer = StructuralAgent(
+                repo_path=str(self.repo_path),
+                artifacts_dir=str(self.artifacts_dir),
+                enable_performance_monitoring=True,
+                enable_edge_case_detection=True,
+                enable_validation=True,
+            )
+        else:
+            # Use legacy Analyzer
+            analyzer = Analyzer(
+                repo_path=str(self.repo_path),
+                artifacts_dir=str(self.artifacts_dir),
+            )
         
         results = analyzer.run()
         self.results["phase1"] = results
