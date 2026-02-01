@@ -22,15 +22,17 @@ class Writer:
             llm_client: LLM client instance
         """
         self.llm = llm_client
-        # Get the repository root
-        self.repo_root = Path(__file__).parent.parent
+        # Get the repository root (go up from phase2_docstrings/agents/)
+        self.repo_root = Path(__file__).parent.parent.parent
     
     def _load_prompt(self, name: str) -> str:
         """
         Load prompt template from file.
         
-        Looks for prompts in phase-specific directories first,
-        then falls back to agents/prompts/.
+        Looks for prompts in phase-specific directories:
+        - docstring: phase2_docstrings/prompts/
+        - readme: phase3_readme/prompts/
+        - evaluation: phase5_evaluation/prompts/
         """
         # Map prompt names to their phase locations
         prompt_locations = {
@@ -43,7 +45,7 @@ class Writer:
         if prompt_path and prompt_path.exists():
             return prompt_path.read_text()
         
-        # Fallback to agents/prompts location
+        # Fallback to old agents/prompts location if phase-specific not found
         fallback_path = self.repo_root / "agents" / "prompts" / f"{name}.md"
         if fallback_path.exists():
             return fallback_path.read_text()

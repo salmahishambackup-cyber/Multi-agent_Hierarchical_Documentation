@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 import networkx as nx
 
-from agents import Writer
+from phase2_docstrings.agents import Writer
 from utils import get_cache_key, load_from_cache, save_to_cache, write_json
 from utils.profiler import profile_phase
 
