@@ -13,7 +13,10 @@ Generate a complete README.md with EXACTLY these 6 sections:
 
 ### 1. Project Title & Badges
 - Project name as H1
-- Add relevant badges (Python version, license, etc.)
+- Add relevant badges using shields.io format:
+  - Python version: `![Python](https://img.shields.io/badge/python-3.8+-blue.svg)`
+  - License: `![License](https://img.shields.io/badge/license-MIT-green.svg)`
+  - Status: `![Status](https://img.shields.io/badge/status-active-success.svg)`
 
 ### 2. Overview/Description
 - 2-3 sentences describing what the project does
@@ -38,4 +41,7 @@ Generate a complete README.md with EXACTLY these 6 sections:
 - Include expected output
 
 ## Output Format:
-Return the complete README.md content in markdown format. Be professional, concise, and accurate.
+Return ONLY the complete README.md content in markdown format. 
+Do NOT wrap the output in code blocks (no ```markdown or ``` tags).
+Output should start directly with the # heading.
+Be professional, concise, and accurate.

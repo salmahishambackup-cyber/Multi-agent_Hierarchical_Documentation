@@ -60,6 +60,9 @@ class ReadmeGenerator:
             analysis_summary=analysis_summary,
         )
         
+        # Post-process: strip markdown code blocks if LLM wrapped the output
+        readme_content = self._strip_code_blocks(readme_content)
+        
         # Save README
         readme_path = self.repo_path / "README.md"
         readme_path.write_text(readme_content, encoding="utf-8")
@@ -108,3 +111,29 @@ class ReadmeGenerator:
                 summary_parts.append(f"\n**External Dependencies:** {len(unique_deps)} packages")
         
         return "\n".join(summary_parts)
+    
+    def _strip_code_blocks(self, content: str) -> str:
+        """
+        Strip markdown code blocks if LLM wrapped the output.
+        
+        Args:
+            content: Generated content that might be wrapped in ```markdown```
+            
+        Returns:
+            Clean content without code block wrappers
+        """
+        content = content.strip()
+        
+        # Check if content starts with ```markdown or ``` and ends with ```
+        if content.startswith("```markdown"):
+            # Remove opening ```markdown
+            content = content[len("```markdown"):].lstrip()
+        elif content.startswith("```"):
+            # Remove opening ```
+            content = content[3:].lstrip()
+        
+        if content.endswith("```"):
+            # Remove closing ```
+            content = content[:-3].rstrip()
+        
+        return content.strip()
