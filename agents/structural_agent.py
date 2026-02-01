@@ -211,7 +211,11 @@ class StructuralAgent:
                 "classes": total_classes,
             },
             "ast_data": ast_data,
-            "deps_data": deps_data,
+            "deps_data": {
+                "internal_dependencies": self._extract_internal_deps(deps_data),
+                "external_dependencies": self._extract_external_deps(deps_data),
+                "raw_graph": deps_data,
+            },
             "components_data": components_data,
             "edge_case_report": edge_case_report.to_dict() if edge_case_report else None,
             "performance_summary": self.monitor.get_summary() if self.monitor else None,
