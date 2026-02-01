@@ -1,0 +1,169 @@
+# Multi-Agent Hierarchical Documentation
+
+This repository is a **multi-agent, artifact-driven** documentation generation system that:
+1. Reads structural artifacts (`ast.json`, `dependencies_normalized.json`, `components.json`)
+2. Generates **Google-style docstrings** using LLM agents with configurable modes
+3. Produces curated README files and optional documentation artifacts
+4. Optimized for **GPU-friendly execution on Colab T4** with 4-bit quantization
+
+## Key Features
+- **Artifact-first approach**: Minimizes LLM usage, maximizes reuse of static analysis
+- **Flexible docstring modes**: `none`, `modules_only`, or `symbols_and_modules`
+- **Memory-efficient**: 4-bit quantization, prompt truncation, smart device management
+- **Router-based architecture**: Shared or per-agent model loading with caching control
+- **Dependency-aware traversal**: Topological order of modules for better context
+- **Incremental caching**: Dynamic-programming-style caching by code hash
+- **Notebook-friendly**: Pure Python API (no CLI required)
+
+## Quickstart (Colab T4 GPU)
+
+### 1. Install dependencies
+```python
+!pip install -q transformers>=4.45.0 accelerate>=0.33.0 torch pydantic networkx
+# Optional: for 4-bit quantization (highly recommended for T4)
+!pip install -q bitsandbytes>=0.41.0
+```
+
+### 2. Basic usage (shared model, quantized)
+```python
+from main import run_pipeline
+
+result = run_pipeline(
+    repo_root="/content/MyProject",
+    artifacts_dir="/content/Artifacts",
+    model_id="Qwen/Qwen2.5-Coder-3B-Instruct",
+    docstring_mode="modules_only",  # Only generate module-level docs
+    quantize=True,                   # Use 4-bit quantization (default)
+    max_input_tokens=2048,           # Truncate long inputs
+    generate_readme=True,            # Generate README.md
+    cleanup_cache=True,
+    debug=True,
+)
+print(result["outputs"])
+```
+
+### 3. Advanced: Per-agent models
+```python
+result = run_pipeline(
+    repo_root="/content/MyProject",
+    artifacts_dir="/content/Artifacts",
+    run_mode="per_agent",
+    agent_models={
+        "writer": "Qwen/Qwen2.5-Coder-3B-Instruct",
+        "critic": "Qwen/Qwen2.5-Coder-1.5B-Instruct",  # Lighter model for critic
+        "readme": "Qwen/Qwen2.5-Coder-3B-Instruct",
+    },
+    docstring_mode="symbols_and_modules",  # Full documentation
+    quantize=True,
+    keep_loaded=False,  # Unload models after each agent
+    debug=True,
+)
+```
+
+### 4. Reuse existing router (avoid duplicate loading)
+```python
+from Utils.ToolBox.llm_clients.session_router import SessionRouter
+
+# Create router once
+router = SessionRouter(
+    run_mode="shared",
+    shared_model_id="Qwen/Qwen2.5-Coder-3B-Instruct",
+    quantize=True,
+    max_input_tokens=2048,
+)
+
+# Use same router for multiple projects
+for project_path in ["/content/Project1", "/content/Project2"]:
+    result = run_pipeline(
+        repo_root=project_path,
+        artifacts_dir="/content/Artifacts",
+        router=router,  # Reuse pre-loaded model
+        docstring_mode="modules_only",
+        debug=True,
+    )
+
+router.cleanup()  # Clean up when done
+```
+
+## Configuration Options
+
+### Docstring Modes
+- **`none`**: No LLM calls, artifact-only (fastest, no docstrings generated)
+- **`modules_only`**: Generate module-level docstrings only (balanced)
+- **`symbols_and_modules`**: Full documentation for all symbols (slowest, most complete)
+
+### Memory Optimization
+- **`quantize=True`**: Use 4-bit quantization (requires bitsandbytes)
+- **`max_input_tokens`**: Truncate prompts to avoid OOM (default: 2048)
+- **`keep_loaded=False`**: Unload models after each agent role (saves memory)
+
+### LLM Parameters (per-role)
+```python
+llm_params_by_role = {
+    "writer": {"temperature": 0.2, "top_p": 0.95, "max_new_tokens": 220},
+    "critic": {"temperature": 0.1, "top_p": 0.9, "max_new_tokens": 150},
+    "readme": {"temperature": 0.3, "top_p": 0.95, "max_new_tokens": 300},
+}
+
+result = run_pipeline(
+    repo_root="/content/MyProject",
+    artifacts_dir="/content/Artifacts",
+    model_id="Qwen/Qwen2.5-Coder-3B-Instruct",
+    llm_params_by_role=llm_params_by_role,
+    docstring_mode="modules_only",
+    debug=True,
+)
+```
+
+## Output Structure
+
+Project key = folder name of `repo_root` (e.g., `/content/MyProject` → `MyProject`).
+
+Artifacts and outputs are written to:
+- `Artifacts/<project_key>/doc_artifacts.json` - Generated docstrings
+- `Artifacts/<project_key>/doc_plan.json` - Module processing order
+- `Artifacts/<project_key>/quality_report.json` - Validation issues
+- `<repo_root>/README.md` - Curated README (if `generate_readme=True`)
+
+Cache (optional, removed if `cleanup_cache=True`):
+- `Artifacts/cache/<project_key>/` - Temporary caching
+
+## Required Input Artifacts
+
+The pipeline expects these files in `Artifacts/<project_key>/`:
+- `ast.json` - AST analysis output
+- `dependencies_normalized.json` - Dependency graph
+- `components.json` - Component groupings
+
+These must be generated by a separate static analysis tool before running the documentation pipeline.
+
+## Deprecated Features
+
+The following features are kept for backward compatibility but are no longer actively maintained:
+- MkDocs site generation (`build_docs_site.py`, `mkdocs_builder.py`)
+- HTML output (`build_html` parameter)
+
+Use the new `generate_readme=True` option instead for cleaner, artifact-driven documentation.
+
+## Troubleshooting
+
+### OOM on Colab T4
+- Enable quantization: `quantize=True`
+- Reduce input tokens: `max_input_tokens=1024`
+- Use modules_only mode: `docstring_mode="modules_only"`
+- Disable model caching: `keep_loaded=False`
+
+### Import errors
+- Ensure all agents and utilities are properly imported
+- Check that `Artifacts/<project_key>/` contains required JSON files
+
+### Model loading issues
+- Install bitsandbytes: `!pip install bitsandbytes`
+- Set `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` (automatically set by HFClient)
+
+## License
+
+See repository license file.
+
+---
+*Generated by Multi-Agent Hierarchical Documentation System v2.0*
