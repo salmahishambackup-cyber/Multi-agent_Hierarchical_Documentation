@@ -22,11 +22,33 @@ class Writer:
             llm_client: LLM client instance
         """
         self.llm = llm_client
-        self.prompts_dir = Path(__file__).parent / "prompts"
+        # Get the repository root
+        self.repo_root = Path(__file__).parent.parent
     
     def _load_prompt(self, name: str) -> str:
-        """Load prompt template from file."""
-        return (self.prompts_dir / f"{name}.md").read_text()
+        """
+        Load prompt template from file.
+        
+        Looks for prompts in phase-specific directories first,
+        then falls back to agents/prompts/.
+        """
+        # Map prompt names to their phase locations
+        prompt_locations = {
+            "docstring": self.repo_root / "phase2_docstrings" / "prompts" / "docstring.md",
+            "readme": self.repo_root / "phase3_readme" / "prompts" / "readme.md",
+            "evaluation": self.repo_root / "phase5_evaluation" / "prompts" / "evaluation.md",
+        }
+        
+        prompt_path = prompt_locations.get(name)
+        if prompt_path and prompt_path.exists():
+            return prompt_path.read_text()
+        
+        # Fallback to agents/prompts location
+        fallback_path = self.repo_root / "agents" / "prompts" / f"{name}.md"
+        if fallback_path.exists():
+            return fallback_path.read_text()
+        
+        raise FileNotFoundError(f"Prompt '{name}' not found in any expected location")
     
     def generate_docstring(self, code: str, context: str = "") -> str:
         """
