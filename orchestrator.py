@@ -73,7 +73,15 @@ class Orchestrator:
             self.critic = Critic()
     
     def run_phase1(self) -> Dict[str, Any]:
-        """Run Phase 1: Static analysis."""
+        """
+        Run Phase 1: Static analysis.
+        
+        Outputs:
+            - <artifacts_dir>/ast.json - AST data for all modules
+            - <artifacts_dir>/dependencies_normalized.json - Dependency graph
+            - <artifacts_dir>/components.json - Component clusters
+            - <artifacts_dir>/edge_cases.json - Edge case analysis (if enabled)
+        """
         print("\n━━━ PHASE 1: Analysis ━━━")
         
         if self.use_structural_agent:
@@ -94,10 +102,23 @@ class Orchestrator:
         
         results = analyzer.run()
         self.results["phase1"] = results
+        
+        # Print output locations
+        if "artifacts" in results:
+            print(f"\n📁 Phase 1 outputs saved to:")
+            for key, path in results["artifacts"].items():
+                print(f"   • {key}: {path}")
+        
         return results
     
     def run_phase2(self) -> Dict[str, Any]:
-        """Run Phase 2: Docstring generation."""
+        """
+        Run Phase 2: Docstring generation.
+        
+        Outputs:
+            - <artifacts_dir>/doc_artifacts.json - Generated docstrings
+            - <artifacts_dir>/cache/ - LLM response cache
+        """
         print("\n━━━ PHASE 2: Docstrings ━━━")
         
         if "phase1" not in self.results:
@@ -116,10 +137,20 @@ class Orchestrator:
         
         results = generator.run()
         self.results["phase2"] = results
+        
+        # Print output location
+        if "output_path" in results:
+            print(f"📁 Phase 2 output saved to: {results['output_path']}")
+        
         return results
     
     def run_phase3(self) -> Dict[str, Any]:
-        """Run Phase 3: README generation."""
+        """
+        Run Phase 3: README generation.
+        
+        Outputs:
+            - <repo_path>/README.md - Generated README file (saved to repository root)
+        """
         print("\n━━━ PHASE 3: README ━━━")
         
         if "phase1" not in self.results:
@@ -137,10 +168,17 @@ class Orchestrator:
         
         results = generator.run()
         self.results["phase3"] = results
+        
+        # Output location already printed by ReadmeGenerator
         return results
     
     def run_phase4(self) -> Dict[str, Any]:
-        """Run Phase 4: Validation."""
+        """
+        Run Phase 4: Validation.
+        
+        Outputs:
+            - No file output (validation results returned in memory only)
+        """
         print("\n━━━ PHASE 4: Validation ━━━")
         
         if "phase3" not in self.results:
@@ -157,10 +195,18 @@ class Orchestrator:
         
         results = validator.run()
         self.results["phase4"] = results
+        
+        print("📋 Phase 4 validation results (in-memory, no file saved)")
+        
         return results
     
     def run_phase5(self) -> Dict[str, Any]:
-        """Run Phase 5: Evaluation."""
+        """
+        Run Phase 5: Evaluation.
+        
+        Outputs:
+            - <artifacts_dir>/evaluation_report.json - Quality scores and feedback
+        """
         print("\n━━━ PHASE 5: Evaluation ━━━")
         
         if "phase3" not in self.results:
@@ -181,6 +227,11 @@ class Orchestrator:
         
         results = evaluator.run()
         self.results["phase5"] = results
+        
+        # Print output location (already printed by Evaluator, but add reminder)
+        if "report_path" in results:
+            print(f"📁 Phase 5 output saved to: {results['report_path']}")
+        
         return results
     
     def run_all(self) -> Dict[str, Any]:
@@ -188,6 +239,7 @@ class Orchestrator:
         print(f"\n🤖 Documentation Assistant")
         print(f"Project: {self.project_name}")
         print(f"Path: {self.repo_path}")
+        print(f"Artifacts Directory: {self.artifacts_dir}")
         
         self.run_phase1()
         self.run_phase2()
@@ -195,9 +247,35 @@ class Orchestrator:
         self.run_phase4()
         self.run_phase5()
         
-        print("\n🎉 Documentation complete!")
-        print(f"README: {self.repo_path / 'README.md'}")
-        print(f"Artifacts: {self.artifacts_dir}")
+        # Print summary of all outputs
+        print("\n" + "=" * 70)
+        print("🎉 DOCUMENTATION PIPELINE COMPLETE!")
+        print("=" * 70)
+        print("\n📂 All Output Locations:")
+        print(f"\n  Phase 1 (Analysis):")
+        if "phase1" in self.results and "artifacts" in self.results["phase1"]:
+            for key, path in self.results["phase1"]["artifacts"].items():
+                print(f"    • {key}: {path}")
+        
+        print(f"\n  Phase 2 (Docstrings):")
+        if "phase2" in self.results and "output_path" in self.results["phase2"]:
+            print(f"    • docstrings: {self.results['phase2']['output_path']}")
+            print(f"    • cache: {self.cache_dir}")
+        
+        print(f"\n  Phase 3 (README):")
+        if "phase3" in self.results and "readme_path" in self.results["phase3"]:
+            print(f"    • README: {self.results['phase3']['readme_path']}")
+        
+        print(f"\n  Phase 4 (Validation):")
+        print(f"    • (in-memory only, no file output)")
+        
+        print(f"\n  Phase 5 (Evaluation):")
+        if "phase5" in self.results and "report_path" in self.results["phase5"]:
+            print(f"    • report: {self.results['phase5']['report_path']}")
+        
+        print("\n" + "=" * 70)
+        print(f"💡 See ALL_OUTPUTS_GUIDE.md for detailed information about each output")
+        print("=" * 70 + "\n")
         
         return self.results
     
