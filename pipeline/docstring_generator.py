@@ -278,7 +278,14 @@ class DocstringGenerator:
         if module_path in self.ast_data:
             imports = self.ast_data[module_path].get("imports", [])
             if imports:
-                context_parts.append(f"Imports: {', '.join(imports[:5])}")
+                # Extract symbol from import dict, handle both dict and string formats
+                import_symbols = []
+                for imp in imports[:5]:
+                    if isinstance(imp, dict):
+                        import_symbols.append(imp.get("symbol", str(imp)))
+                    else:
+                        import_symbols.append(str(imp))
+                context_parts.append(f"Imports: {', '.join(import_symbols)}")
         
         # Add dependencies
         internal_deps = self.deps_data.get("internal_dependencies", {}).get(module_path, [])
