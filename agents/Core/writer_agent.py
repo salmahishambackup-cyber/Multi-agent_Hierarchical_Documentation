@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List
 
-from Utils.ToolBox.io_tools import read_json
-from Utils.ToolBox.llm_clients.hf_client import HFClient
+from utils.ToolBox.io_tools import read_json
+from utils.ToolBox.llm_clients.hf_client import HFClient
 
 
 @dataclass

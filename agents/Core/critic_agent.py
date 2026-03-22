@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
-from Utils.ToolBox.validation_tools import validate_google_docstring
-from Utils.ToolBox.llm_clients.hf_client import HFClient
+from utils.ToolBox.validation_tools import validate_google_docstring
+from utils.ToolBox.llm_clients.hf_client import HFClient
 
 
 @dataclass

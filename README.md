@@ -170,7 +170,7 @@ All artifacts are saved to the `artifacts_dir` (default: `./artifacts`):
 | 4 | Validation | In-memory only |
 | 5 | Evaluation | `./artifacts/evaluation_report.json` |
 
-See `OUTPUT_LOCATIONS_QUICK_REF.md` and `ALL_OUTPUTS_GUIDE.md` for complete details.
+See `ALL_OUTPUTS_GUIDE.md` for complete details.
 
 ## Configuration Options
 
@@ -230,7 +230,6 @@ enable_validation=True              # Validate output schemas
 
 ## Documentation
 
-- **Quick Reference**: `OUTPUT_LOCATIONS_QUICK_REF.md` - Fast lookup for output locations
 - **Complete Guide**: `ALL_OUTPUTS_GUIDE.md` - Comprehensive documentation
 - **Navigation Index**: `DOCUMENTATION_INDEX.md` - Master index of all documentation
 - **Output Summary**: `OUTPUT_LOCATION_SUMMARY.md` - Overview of outputs
