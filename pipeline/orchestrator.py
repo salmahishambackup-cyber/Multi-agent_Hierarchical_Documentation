@@ -15,6 +15,8 @@ from pipeline.evaluator import Evaluator
 from agents import Writer, Critic
 # Import StructuralAgent directly to avoid torch import issues in agents/__init__.py
 from agents.structural_agent import StructuralAgent
+from agents.artifact_critic import ArtifactCritic
+from agents.artifact_enricher import ArtifactEnricher
 from utils.llm_client import LLMClient
 from utils import ensure_dir
 
@@ -186,22 +188,73 @@ class Orchestrator:
         self.results["phase5"] = results
         return results
     
+    def run_phase6(self) -> Dict[str, Any]:
+        """Run Phase 6: Artifact Diagnosis."""
+        print("\n━━━ PHASE 6: Artifact Diagnosis ━━━")
+
+        critic = ArtifactCritic(
+            repo_path=str(self.repo_path),
+            artifacts_dir=str(self.artifacts_dir),
+        )
+
+        results = critic.run()
+        self.results["phase6"] = results
+        return results
+
+    def run_phase7(self) -> Dict[str, Any]:
+        """Run Phase 7: Artifact Enrichment (iterates until no CRITICAL/MAJOR issues)."""
+        print("\n━━━ PHASE 7: Artifact Enrichment ━━━")
+
+        enricher = ArtifactEnricher(
+            repo_path=str(self.repo_path),
+            artifacts_dir=str(self.artifacts_dir),
+        )
+
+        results = enricher.run()
+        self.results["phase7"] = results
+        return results
+
+    def run_phase8(self) -> Dict[str, Any]:
+        """Run Phase 8: Enhanced README Generation (10 sections)."""
+        print("\n━━━ PHASE 8: Enhanced README ━━━")
+
+        if "phase1" not in self.results:
+            raise ValueError("Phase 1 must be run before Phase 8")
+
+        self._ensure_llm()
+
+        generator = ReadmeGenerator(
+            writer=self.writer,
+            repo_path=str(self.repo_path),
+            artifacts_dir=str(self.artifacts_dir),
+            project_name=self.project_name,
+            analysis_results=self.results["phase1"],
+            enhanced=True,
+        )
+
+        results = generator.run()
+        self.results["phase8"] = results
+        return results
+
     def run_all(self) -> Dict[str, Any]:
-        """Run all 5 phases in sequence."""
+        """Run all 8 phases in sequence."""
         print(f"\n🤖 Documentation Assistant")
         print(f"Project: {self.project_name}")
         print(f"Path: {self.repo_path}")
-        
+
         self.run_phase1()
         self.run_phase2()
         self.run_phase3()
         self.run_phase4()
         self.run_phase5()
-        
+        self.run_phase6()
+        self.run_phase7()
+        self.run_phase8()
+
         print("\n🎉 Documentation complete!")
         print(f"README: {self.repo_path / 'README.md'}")
         print(f"Artifacts: {self.artifacts_dir}")
-        
+
         return self.results
     
     def cleanup(self):
