@@ -4,6 +4,7 @@ Orchestrator for coordinating all pipeline phases.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -23,7 +24,7 @@ from utils import ensure_dir
 
 class Orchestrator:
     """
-    Coordinates all 5 phases of the documentation pipeline.
+    Coordinates all 8 phases of the documentation pipeline.
     """
     
     def __init__(
@@ -47,7 +48,7 @@ class Orchestrator:
             use_structural_agent: Use enhanced StructuralAgent for Phase 1 (default: True)
         """
         self.repo_path = Path(repo_path).resolve()
-        self.project_name = self.repo_path.name
+        self.project_name = self._infer_project_name()
         self.artifacts_dir = Path(artifacts_dir).resolve()
         self.cache_dir = self.artifacts_dir / "cache"
         self.use_structural_agent = use_structural_agent
@@ -66,6 +67,75 @@ class Orchestrator:
         # Results storage
         self.results = {}
     
+    def _infer_project_name(self) -> str:
+        """
+        Infer the actual project name from multiple sources in priority order:
+        1. setup.py ``name=`` field
+        2. pyproject.toml ``[project] name`` or ``[tool.poetry] name``
+        3. Top-level ``__init__.py`` module docstring (first non-empty line)
+        4. Directory name (fallback)
+
+        Returns:
+            Inferred project name string.
+        """
+        # 1. setup.py
+        setup_py = self.repo_path / "setup.py"
+        if setup_py.exists():
+            try:
+                text = setup_py.read_text(encoding="utf-8")
+                match = re.search(
+                    r"""name\s*=\s*['"]([^'"]+)['"]""", text
+                )
+                if match:
+                    return match.group(1)
+            except OSError:
+                pass
+
+        # 2. pyproject.toml
+        pyproject = self.repo_path / "pyproject.toml"
+        if pyproject.exists():
+            try:
+                text = pyproject.read_text(encoding="utf-8")
+                # Find [project] or [tool.poetry] section, then look for name = "..."
+                # within that section (before the next section header).
+                section_match = re.search(
+                    r"^\[(?:project|tool\.poetry)\]\s*\n((?:[^\[].*)*)$",
+                    text,
+                    re.MULTILINE | re.DOTALL,
+                )
+                if section_match:
+                    section_body = section_match.group(1)
+                    name_match = re.search(
+                        r"""^name\s*=\s*['"]([^'"]+)['"]""",
+                        section_body,
+                        re.MULTILINE,
+                    )
+                    if name_match:
+                        return name_match.group(1)
+            except OSError:
+                pass
+
+        # 3. Top-level __init__.py module docstring (triple-quoted only)
+        init_py = self.repo_path / "__init__.py"
+        if init_py.exists():
+            try:
+                text = init_py.read_text(encoding="utf-8")
+                doc_match = re.match(
+                    r'''^\s*(?:"""(.*?)"""|\'\'\'(.*?)\'\'\')''',
+                    text,
+                    re.DOTALL,
+                )
+                if doc_match:
+                    docstring = doc_match.group(1) or doc_match.group(2)
+                    first_line = docstring.strip().split("\n")[0].strip()
+                    if first_line and len(first_line) < 80:
+                        return first_line
+            except OSError:
+                pass
+
+        # 4. Directory name (fallback)
+        return self.repo_path.name
+
     def _ensure_llm(self):
         """Lazily initialize LLM client and agents."""
         if self.llm_client is None:

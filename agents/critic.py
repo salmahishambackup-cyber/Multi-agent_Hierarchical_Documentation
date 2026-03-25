@@ -8,6 +8,15 @@ import re
 from typing import Dict, List, Tuple
 
 
+# Compiled patterns for placeholder / weak-output text, defined at module level
+# to avoid recompilation on every call.
+_WEAK_OUTPUT_PATTERNS = [
+    (re.compile(r'\bupdated\b', re.IGNORECASE), "'updated' placeholder"),
+    (re.compile(r'\bunknown\b', re.IGNORECASE), "'unknown' placeholder"),
+    (re.compile(r'\bfeature\s+\d+\b', re.IGNORECASE), "generic 'Feature N' label"),
+]
+
+
 class Critic:
     """
     Lightweight heuristic-based quality checker.
@@ -61,6 +70,11 @@ class Critic:
         """
         issues = []
         content_lower = content.lower()
+
+        # Universal check: placeholder / weak-output text in any section
+        for pattern, label in _WEAK_OUTPUT_PATTERNS:
+            if pattern.search(content):
+                issues.append(f"Contains {label} — replace with actual content")
         
         if section_name == "title":
             if len(content.strip()) < 3:
