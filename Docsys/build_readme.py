@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from Utils.ToolBox.io_tools import read_json
-from Utils.ToolBox.llm_clients.session_router import SessionRouter
+from utils.ToolBox.io_tools import read_json
+from utils.ToolBox.llm_clients.session_router import SessionRouter
 
 
 def build_readme(
@@ -29,7 +29,7 @@ def build_readme(
     
     # Load analyzer artifacts
     try:
-        from Utils.ToolBox.artifact_loader import load_project_artifacts
+        from utils.ToolBox.artifact_loader import load_project_artifacts
         artifacts = load_project_artifacts(cfg.project_artifacts_dir)
         components = artifacts.get("components", {})
         deps = artifacts.get("deps", {})

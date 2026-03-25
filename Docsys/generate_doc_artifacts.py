@@ -3,21 +3,21 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from Agents.Core.planner_agent import PlannerAgent
-from Agents.Core.extractor_agent import ExtractorAgent
-from Agents.Core.context_agent import ContextAgent
-from Agents.Core.writer_agent import WriterAgent
-from Agents.Core.critic_agent import CriticAgent
+from agents.Core.planner_agent import PlannerAgent
+from agents.Core.extractor_agent import ExtractorAgent
+from agents.Core.context_agent import ContextAgent
+from agents.Core.writer_agent import WriterAgent
+from agents.Core.critic_agent import CriticAgent
 
 from Docsys.schemas import DocArtifacts, ModuleDoc, SymbolDoc, QualityReport
-from Utils.ToolBox.artifact_loader import load_project_artifacts
-from Utils.ToolBox.io_tools import write_json, append_jsonl
-from Utils.ToolBox.context_tools import one_line_summary
-from Utils.ToolBox.llm_clients.session_router import SessionRouter
-from Utils.ToolBox.hashing_tools import sha256_text
+from utils.ToolBox.artifact_loader import load_project_artifacts
+from utils.ToolBox.io_tools import write_json, append_jsonl
+from utils.ToolBox.context_tools import one_line_summary
+from utils.ToolBox.llm_clients.session_router import SessionRouter
+from utils.ToolBox.hashing_tools import sha256_text
 
 # Optional in-place insertion
-from Utils.ToolBox.docstring_inserter import insert_docstrings_inplace_optional
+from utils.ToolBox.docstring_inserter import insert_docstrings_inplace_optional
 
 
 def generate_doc_artifacts(cfg, router: Optional[SessionRouter] = None) -> Dict[str, Any]:
@@ -53,7 +53,7 @@ def generate_doc_artifacts(cfg, router: Optional[SessionRouter] = None) -> Dict[
             writer_client = router.get_client("writer")
             critic_client = router.get_client("critic")
         else:
-            from Utils.ToolBox.llm_clients.hf_client import HFClient
+            from utils.ToolBox.llm_clients.hf_client import HFClient
             hf = HFClient(model_id=cfg.model_id, device=cfg.device, dtype=cfg.dtype)
             writer_client = hf
             critic_client = hf

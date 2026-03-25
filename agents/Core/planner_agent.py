@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List
 
 from Docsys.schemas import DocPlan, PlanTask
-from Utils.ToolBox.graph_tools import build_module_graph, topo_sort_modules
+from utils.ToolBox.graph_tools import build_module_graph, topo_sort_modules
 
 
 @dataclass

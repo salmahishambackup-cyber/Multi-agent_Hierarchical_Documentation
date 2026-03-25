@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
-from Utils.ToolBox.slicing_tools import slice_file_by_bytes
-from Utils.ToolBox.hashing_tools import sha256_text
+from utils.ToolBox.slicing_tools import slice_file_by_bytes
+from utils.ToolBox.hashing_tools import sha256_text
 
 
 @dataclass
