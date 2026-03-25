@@ -1,11 +1,29 @@
 # {{ project_key }} Documentation
 
+[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
+[![Status](https://img.shields.io/badge/status-active-success.svg)]()
+
 ## Overview
-This documentation was generated automatically using:
-- Structural artifacts (AST + dependency graph + components)
-- Generated Google-style docstrings (no-import rendering)
+
+> Auto-generated documentation for **{{ project_key }}**.
+
+This documentation was generated automatically using the Multi-Agent Hierarchical Documentation system:
+- **Phase 1** — Structural artifacts (AST + dependency graph + components)
+- **Phase 2** — Google-style docstrings (LLM-powered, cached)
+- **Phase 3** — README generation
+- **Phase 4** — Validation
+- **Phase 5** — Quality evaluation
 
 ## Modules
-{% for m in doc_artifacts.modules %}
-- **{{ m.module_name }}** — {{ (m.docstring.splitlines()|select('string')|list|first)|default('') }}
+
+| Module | Description |
+|--------|-------------|
+{% for m in doc_artifacts.modules %}| **{{ m.module_name }}** | {{ (m.docstring.splitlines()|select('string')|list|first)|default('—') }} |
 {% endfor %}
+
+## Quick Links
+
+- [Getting Started](getting-started.md)
+- [Architecture Overview](architecture/overview.md)
+- [Dependencies](architecture/dependencies.md)
+- [API Reference](api/)

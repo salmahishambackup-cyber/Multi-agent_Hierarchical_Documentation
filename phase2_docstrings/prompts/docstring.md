@@ -6,10 +6,12 @@ You are an expert Python documentation writer. Generate a clear, concise Google-
 - Use Google-style format (Args, Returns, Raises sections)
 - Be concise but complete
 - Include type information
-- Describe what the code does, not how it works
+- Describe WHAT the code does AND WHY it exists (business purpose)
 - For functions: describe parameters and return value
 - For classes: describe purpose and key attributes
-- For modules: describe overall purpose
+- For modules: describe overall purpose and the business problem it solves
+- Capture the business intent — e.g., "Matches a pool of candidates to a reference cohort" not just "Processes data"
+- Infer domain context from variable/parameter names (e.g., ARPU → telecom revenue, WL/PL → whitelist/pool list matching)
 
 ## Code Context:
 {{context}}
@@ -20,4 +22,7 @@ You are an expert Python documentation writer. Generate a clear, concise Google-
 ```
 
 ## Output Format:
-Return ONLY the docstring content (without the triple quotes). Start with a one-line summary, then add details as needed.
+Return ONLY the docstring content (without the triple quotes).
+Start with a one-line summary that captures the business purpose.
+Then add technical details (Args, Returns, Raises) as needed.
+Do NOT start the summary with generic phrases like "This function" or "This module" — start with an action verb or noun phrase.

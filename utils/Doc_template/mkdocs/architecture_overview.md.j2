@@ -1,11 +1,37 @@
 # Architecture Overview
 
+## Pipeline Flow
+
+```mermaid
+flowchart TD
+    P1["Phase 1: Static Analysis"] --> P2["Phase 2: Docstring Generation"]
+    P2 --> P3["Phase 3: README Generation"]
+    P3 --> P4["Phase 4: Validation"]
+    P4 --> P5["Phase 5: Evaluation"]
+    P5 --> P6["Phase 6: Artifact Diagnosis"]
+    P6 --> P7["Phase 7: Artifact Enrichment"]
+    P7 --> P8["Phase 8: Enhanced README"]
+```
+
 ## Components (from `components.json`)
+
 {% for c in components.data %}
-### {{ c.component_id }} (confidence: {{ c.confidence }})
-- Hypothesis: {{ c.hypothesis }}
-- Files:
+### {{ c.component_id }}{% if c.confidence %} *(confidence: {{ c.confidence }})*{% endif %}
+
+{% if c.hypothesis %}- **Hypothesis:** {{ c.hypothesis }}{% endif %}
+{% if c.business_role %}- **Business Role:** {{ c.business_role }}{% endif %}
+{% if c.architectural_layer %}- **Layer:** {{ c.architectural_layer }}{% endif %}
+
+**Files:**
 {% for f in c.files %}
-  - `{{ f }}`
+- `{{ f }}`
 {% endfor %}
+
 {% endfor %}
+
+## File Structure
+
+```
+{{ project_key }}/
+{% for f in file_list %}├── {{ f }}
+{% endfor %}```

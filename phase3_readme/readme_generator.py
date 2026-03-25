@@ -75,41 +75,89 @@ class ReadmeGenerator:
         }
     
     def _build_analysis_summary(self) -> str:
-        """Build a summary of the analysis results."""
+        """Build a rich summary of the analysis results including actual code elements."""
         stats = self.analysis_results.get("stats", {})
         ast_data = self.analysis_results.get("ast_data", {})
         deps_data = self.analysis_results.get("deps_data", {})
         components_data = self.analysis_results.get("components_data", {})
-        
+
         summary_parts = []
-        
+
         # Basic stats
-        summary_parts.append(f"**Statistics:**")
+        summary_parts.append("**Statistics:**")
         summary_parts.append(f"- Modules: {stats.get('modules', 0)}")
         summary_parts.append(f"- Functions: {stats.get('functions', 0)}")
         summary_parts.append(f"- Classes: {stats.get('classes', 0)}")
-        
-        # Key modules
+
+        # Key modules with docstrings / first-line descriptions
         if ast_data:
-            module_names = list(ast_data.keys())[:5]
-            summary_parts.append(f"\n**Key Modules:**")
-            for module in module_names:
-                summary_parts.append(f"- {module}")
-        
+            module_names = list(ast_data.keys())
+            summary_parts.append("\n**Key Modules:**")
+            for module in module_names[:8]:
+                module_info = ast_data[module]
+                # Include existing module-level docstring if available
+                existing_doc = (
+                    module_info.get("module_docstring")
+                    or module_info.get("docstring")
+                    or ""
+                )
+                first_line = existing_doc.strip().split("\n")[0].strip() if existing_doc else ""
+                if first_line:
+                    summary_parts.append(f"- `{module}`: {first_line}")
+                else:
+                    summary_parts.append(f"- `{module}`")
+
+        # Actual function and class names per module for feature generation
+        if ast_data:
+            summary_parts.append("\n**Key Functions & Classes (from AST):**")
+            seen_names: set = set()
+            for module, module_info in ast_data.items():
+                for func in module_info.get("functions", [])[:5]:
+                    fname = func.get("name", "")
+                    if fname and fname not in seen_names:
+                        seen_names.add(fname)
+                        doc_first = ""
+                        existing = func.get("docstring", "")
+                        if existing:
+                            doc_first = existing.strip().split("\n")[0].strip()
+                        if doc_first:
+                            summary_parts.append(f"- `{fname}()` ({module}): {doc_first}")
+                        else:
+                            summary_parts.append(f"- `{fname}()` ({module})")
+                for cls in module_info.get("classes", [])[:3]:
+                    cname = cls.get("name", "")
+                    if cname and cname not in seen_names:
+                        seen_names.add(cname)
+                        summary_parts.append(f"- class `{cname}` ({module})")
+
+        # File structure (first level)
+        summary_parts.append("\n**File Structure:**")
+        for module in list(ast_data.keys())[:10]:
+            summary_parts.append(f"- `{module}`")
+
         # Components
         if components_data and "components" in components_data:
-            summary_parts.append(f"\n**Components:** {len(components_data['components'])} identified")
-        
-        # Dependencies
+            comps = components_data["components"]
+            summary_parts.append(f"\n**Components:** {len(comps)} identified")
+            for comp in comps[:5]:
+                comp_name = comp.get("name") or comp.get("component_id") or "unnamed"
+                hypothesis = comp.get("hypothesis", "")
+                if hypothesis:
+                    summary_parts.append(f"- {comp_name}: {hypothesis}")
+                else:
+                    summary_parts.append(f"- {comp_name}")
+
+        # External dependencies
         if deps_data:
             external_deps = deps_data.get("external_dependencies", {})
             if external_deps:
-                # Count unique external dependencies
-                unique_deps = set()
+                unique_deps: set = set()
                 for deps_list in external_deps.values():
                     unique_deps.update(deps_list)
-                summary_parts.append(f"\n**External Dependencies:** {len(unique_deps)} packages")
-        
+                summary_parts.append(
+                    f"\n**External Dependencies:** {', '.join(sorted(unique_deps)[:10])}"
+                )
+
         return "\n".join(summary_parts)
     
     def _strip_code_blocks(self, content: str) -> str:
