@@ -2,9 +2,9 @@
 Phase 3 & Phase 8: README generation.
 
 Phase 3 uses the Writer agent to produce a README with 6 sections.
-Phase 8 (enhanced) generates a comprehensive README with all 10 required
-sections, a Mermaid pipeline flowchart, and richer content derived from
-the enriched artifacts.
+Phase 8 (enhanced) generates a comprehensive README with all 11 required
+sections using actual analysis data from the target project, not hardcoded
+content about the documentation tool.
 """
 
 from __future__ import annotations
@@ -14,7 +14,6 @@ from typing import Any, Dict, List, Optional
 
 from agents import Writer
 from utils import write_json
-from utils.artifact_utils import generate_mermaid_flowchart
 from utils.profiler import profile_phase
 
 
@@ -25,9 +24,9 @@ class ReadmeGenerator:
     When *enhanced* is False (default), produces 6 sections via a single
     LLM call — compatible with the existing Phase 3 pipeline.
 
-    When *enhanced* is True, produces all 10 required sections with a
-    Mermaid flowchart and richer content sourced from the enriched
-    artifacts directory.
+    When *enhanced* is True, produces all 11 required sections with rich
+    content sourced from the enriched artifacts directory, documenting the
+    *target project* rather than the documentation tool itself.
     """
 
     # Section order for the enhanced README
@@ -35,7 +34,8 @@ class ReadmeGenerator:
         "Project Title & Metadata",
         "Executive Summary",
         "Business Context & Motivation",
-        "System Architecture & Pipeline Flow",
+        "System Architecture",
+        "Functions & Business Logic",
         "Component & Module Reference",
         "Getting Started",
         "Usage Guide",
@@ -87,7 +87,7 @@ class ReadmeGenerator:
         readme_path = self.repo_path / "README.md"
         readme_path.write_text(readme_content, encoding="utf-8")
 
-        section_count = 10 if self.enhanced else 6
+        section_count = 11 if self.enhanced else 6
         print(f"✅ README generated ({section_count} sections): {readme_path}")
 
         return {
@@ -114,13 +114,13 @@ class ReadmeGenerator:
 
     def _generate_enhanced(self) -> str:
         """
-        Build a comprehensive README with all 10 required sections.
+        Build a comprehensive README with all 11 required sections.
 
-        Sections are assembled from structured data rather than a single
-        LLM prompt, so the output is deterministic and always contains
-        every required heading.
+        Sections are assembled from structured data (ast_data, enriched
+        doc_artifacts, deps_data) so the output always documents the
+        *target project*, not the documentation tool.
         """
-        print(f"Generating enhanced README (10 sections) for '{self.project_name}'…")
+        print(f"Generating enhanced README (11 sections) for '{self.project_name}'…")
 
         stats = self.analysis_results.get("stats", {})
         ast_data = self.analysis_results.get("ast_data", {}) or {}
@@ -136,31 +136,34 @@ class ReadmeGenerator:
         sections.append(self._section_title(stats))
 
         # 2. Executive Summary
-        sections.append(self._section_executive_summary(stats, ast_data))
+        sections.append(self._section_executive_summary(stats, ast_data, enriched))
 
         # 3. Business Context & Motivation
         sections.append(self._section_business_context(enriched))
 
-        # 4. System Architecture & Pipeline Flow
+        # 4. System Architecture
         sections.append(self._section_architecture(ast_data, components))
 
-        # 5. Component & Module Reference
+        # 5. Functions & Business Logic (DETAILED)
+        sections.append(self._section_functions_business_logic(ast_data, enriched))
+
+        # 6. Component & Module Reference
         sections.append(self._section_component_reference(ast_data, components, enriched))
 
-        # 6. Getting Started
+        # 7. Getting Started
         sections.append(self._section_getting_started(external_deps))
 
-        # 7. Usage Guide
-        sections.append(self._section_usage_guide(enriched))
+        # 8. Usage Guide
+        sections.append(self._section_usage_guide(enriched, ast_data))
 
-        # 8. Developer Guide
+        # 9. Developer Guide
         sections.append(self._section_developer_guide(ast_data))
 
-        # 9. Deployment & Operations
-        sections.append(self._section_deployment())
+        # 10. Deployment & Operations
+        sections.append(self._section_deployment(external_deps))
 
-        # 10. Troubleshooting & FAQs
-        sections.append(self._section_troubleshooting())
+        # 11. Troubleshooting & FAQs
+        sections.append(self._section_troubleshooting(enriched))
 
         return "\n\n".join(sections)
 
@@ -185,52 +188,114 @@ class ReadmeGenerator:
         self,
         stats: Dict[str, Any],
         ast_data: Dict[str, Any],
+        enriched: List[Dict[str, Any]],
     ) -> str:
         modules = stats.get("modules", 0)
         functions = stats.get("functions", 0)
+        classes = stats.get("classes", 0)
+
+        # Collect short descriptions from enriched entries (unique, non-empty)
+        short_descs = list(
+            dict.fromkeys(
+                e.get("short_description", "").strip()
+                for e in enriched
+                if e.get("short_description", "").strip()
+            )
+        )[:6]
+
+        # Determine main language/framework hints from deps
+        module_names = list(ast_data.keys())[:8]
+
         lines = [
             "## Executive Summary\n",
-            f"**{self.project_name}** is a multi-phase hierarchical documentation "
-            "pipeline that automatically analyses a Python codebase, generates "
-            "enriched docstrings, and produces comprehensive reference documentation.",
+            f"**{self.project_name}** is a Python project comprising "
+            f"{modules} module(s), {functions} function(s), and {classes} class(es).",
             "",
-            "**Problem solved:** Maintaining up-to-date documentation by hand is "
-            "expensive and error-prone. This system automates the full lifecycle "
-            "from static analysis through to README generation.",
-            "",
-            "**Value delivered:**",
-            f"- Analyses {modules} module(s) containing {functions} function(s)",
-            "- Produces structured, enriched documentation with business context",
-            "- Iterates until zero CRITICAL or MAJOR documentation gaps remain",
         ]
+
+        if short_descs:
+            lines.append(
+                "**Key capabilities identified from code analysis:**"
+            )
+            for desc in short_descs:
+                lines.append(f"- {desc}")
+            lines.append("")
+
+        if module_names:
+            lines.append(
+                f"The project is structured across {len(module_names)} analysed "
+                "source file(s):"
+            )
+            for m in module_names:
+                lines.append(f"- `{m}`")
+            lines.append("")
+
+        # Use LLM to produce a richer summary if data is available
+        if enriched:
+            llm_context = "; ".join(short_descs[:4]) if short_descs else ""
+            if llm_context:
+                prompt = (
+                    f"Write a concise 2-sentence executive summary for a software project "
+                    f"named '{self.project_name}' based on these function descriptions: "
+                    f"{llm_context}. Do not mention any documentation tools."
+                )
+                llm_text = self._llm_generate(prompt, max_tokens=200)
+                if llm_text:
+                    lines += [llm_text, ""]
+
         return "\n".join(lines)
 
     def _section_business_context(self, enriched: List[Dict[str, Any]]) -> str:
-        contexts = [
-            e.get("business_context", "")
-            for e in enriched
-            if e.get("business_context")
-        ]
-        unique_contexts = list(dict.fromkeys(contexts))[:5]
+        # Collect unique non-empty business context strings
+        contexts = list(
+            dict.fromkeys(
+                e.get("business_context", "").strip()
+                for e in enriched
+                if e.get("business_context", "").strip()
+            )
+        )
 
-        lines = [
-            "## Business Context & Motivation\n",
-            "This system addresses the need for always-current, machine-readable "
-            "documentation in large Python projects.",
-            "",
-            "**Strategic goals:**",
-            "- Reduce documentation debt through automated generation",
-            "- Surface business context embedded in source code",
-            "- Enable onboarding through rich, structured documentation",
-            "",
-            "**Stakeholders:** engineering leads, developers, technical writers, "
-            "and product managers who rely on accurate API documentation.",
-        ]
+        # Collect unique detailed descriptions as supplementary context
+        detailed = list(
+            dict.fromkeys(
+                e.get("detailed_description", "").strip()
+                for e in enriched
+                if e.get("detailed_description", "").strip()
+            )
+        )[:5]
 
-        if unique_contexts:
-            lines += ["", "**Sample business contexts identified:**"]
-            for ctx in unique_contexts:
+        lines = ["## Business Context & Motivation\n"]
+
+        if contexts:
+            lines.append(
+                "The following business contexts were identified directly from "
+                "the project's source code and docstrings:\n"
+            )
+            for ctx in contexts[:8]:
                 lines.append(f"- {ctx}")
+        else:
+            lines.append(
+                f"Business context for **{self.project_name}** is derived from "
+                "the modules, functions, and classes identified during static analysis."
+            )
+
+        if detailed:
+            lines += ["", "**Functional highlights:**"]
+            for desc in detailed:
+                lines.append(f"- {desc}")
+
+        # Ask LLM to infer a business problem statement if we have any context
+        if contexts or detailed:
+            combined = ". ".join((contexts + detailed)[:5])
+            prompt = (
+                f"Based on these descriptions from the project '{self.project_name}': "
+                f"{combined}\n\n"
+                "Write 2 sentences explaining what business problem this project solves "
+                "and who benefits from it. Be specific and avoid generic phrases."
+            )
+            llm_text = self._llm_generate(prompt, max_tokens=200)
+            if llm_text:
+                lines += ["", "**Problem & stakeholders:**", llm_text]
 
         return "\n".join(lines)
 
@@ -239,30 +304,49 @@ class ReadmeGenerator:
         ast_data: Dict[str, Any],
         components: List[Dict[str, Any]],
     ) -> str:
-        mermaid = generate_mermaid_flowchart()
+        lines = ["## System Architecture\n"]
 
-        lines = [
-            "## System Architecture & Pipeline Flow\n",
-            "The system is organised as a sequential eight-phase pipeline:\n",
-            mermaid,
-            "",
-            "### Data Contracts\n",
-            "| Artifact | Produced by | Consumed by |",
-            "|----------|-------------|-------------|",
-            "| `ast.json` | Phase 1 | Phase 2, Phase 6 |",
-            "| `dependencies_normalized.json` | Phase 1 | Phase 2, Phase 6 |",
-            "| `components.json` | Phase 1 | Phase 5, Phase 6 |",
-            "| `doc_artifacts.json` | Phase 2 | Phase 6, Phase 8 |",
-            "| `weakness_report.json` | Phase 6 | Phase 7 |",
-            "| `README.md` | Phase 3 / Phase 8 | Phase 4, Phase 5 |",
-        ]
+        # Collect layers / roles from ast_data
+        layer_map: Dict[str, List[str]] = {}
+        for file_path, file_data in ast_data.items():
+            if not isinstance(file_data, dict):
+                continue
+            layer = file_data.get("layer") or "general"
+            layer_map.setdefault(layer, []).append(file_path)
+
+        if layer_map:
+            lines.append("### Module Layers\n")
+            for layer, files in sorted(layer_map.items()):
+                lines.append(f"**{layer.capitalize()}**")
+                for f in files[:6]:
+                    semantic_role = ""
+                    fd = ast_data.get(f, {})
+                    if isinstance(fd, dict):
+                        semantic_role = fd.get("semantic_role") or ""
+                    role_hint = f" — {semantic_role}" if semantic_role else ""
+                    lines.append(f"- `{f}`{role_hint}")
+                lines.append("")
 
         if components:
-            lines += ["", "### Identified Components\n"]
-            for comp in components[:10]:
+            lines.append("### Identified Components\n")
+            for comp in components[:12]:
                 name = comp.get("name") or comp.get("component_id") or "—"
                 role = comp.get("business_role") or comp.get("type") or ""
-                lines.append(f"- **{name}**: {role}")
+                dep_list = comp.get("dependencies") or []
+                dep_str = (
+                    f" | deps: {', '.join(dep_list[:3])}" if dep_list else ""
+                )
+                lines.append(f"- **{name}**: {role}{dep_str}")
+            lines.append("")
+
+        if not layer_map and not components:
+            files = list(ast_data.keys())
+            if files:
+                lines.append("### Source Modules\n")
+                for f in files[:20]:
+                    lines.append(f"- `{f}`")
+            else:
+                lines.append("_No architecture data available._")
 
         return "\n".join(lines)
 
@@ -324,174 +408,417 @@ class ReadmeGenerator:
 
     def _section_getting_started(self, external_deps: List[str]) -> str:
         deps_block = (
-            "\n".join(f"# {dep}" for dep in external_deps[:10])
+            "\n".join(dep for dep in external_deps[:15])
             if external_deps
-            else "# See requirements.txt"
+            else "# See requirements.txt or setup.py for dependencies"
         )
+
+        # Check whether setup.py / pyproject.toml / requirements.txt exist
+        install_hints: List[str] = []
+        for candidate in ("requirements.txt", "setup.py", "pyproject.toml", "Pipfile"):
+            if (self.repo_path / candidate).exists():
+                install_hints.append(candidate)
+
+        install_cmd = "pip install -r requirements.txt"
+        if "pyproject.toml" in install_hints:
+            install_cmd = "pip install ."
+        elif "setup.py" in install_hints:
+            install_cmd = "pip install -e ."
+
         return (
             "## Getting Started\n\n"
             "### Prerequisites\n\n"
-            "- Python 3.9+\n"
-            "- pip or conda\n"
-            "- (Optional) CUDA-capable GPU for quantised LLM inference\n\n"
+            "- Python 3.8+\n"
+            "- pip or conda\n\n"
             "### Installation\n\n"
             "```bash\n"
             "git clone <repository-url>\n"
             f"cd {self.project_name}\n"
-            "pip install -r requirements.txt\n"
+            f"{install_cmd}\n"
             "```\n\n"
-            "### Configuration\n\n"
-            "| Variable | Default | Description |\n"
-            "|----------|---------|-------------|\n"
-            "| `--repo-path` | `.` | Repository to document |\n"
-            "| `--artifacts-dir` | `./artifacts` | Output directory |\n"
-            "| `--model-id` | `Qwen/Qwen2.5-Coder-1.5B-Instruct` | LLM model |\n"
-            "| `--no-quantize` | `False` | Disable 4-bit quantisation |\n\n"
-            "### Quickstart\n\n"
-            "```python\n"
-            "from pipeline.orchestrator import Orchestrator\n\n"
-            f'orchestrator = Orchestrator(repo_path=".", artifacts_dir="./artifacts")\n'
-            "orchestrator.run_all()\n"
-            "```\n\n"
-            "**Key dependencies:**\n\n"
+            "### Key dependencies\n\n"
             f"```text\n{deps_block}\n```"
         )
 
-    def _section_usage_guide(self, enriched: List[Dict[str, Any]]) -> str:
-        example_entries = [e for e in enriched if e.get("example")][:3]
+    def _section_functions_business_logic(
+        self,
+        ast_data: Dict[str, Any],
+        enriched: List[Dict[str, Any]],
+    ) -> str:
+        """
+        Build a detailed Functions & Business Logic section.
 
-        lines = [
-            "## Usage Guide\n",
-            "### End-to-End Usage\n",
-            "```python\n"
-            "from pipeline.orchestrator import Orchestrator\n\n"
-            "orch = Orchestrator(\n"
-            '    repo_path="/path/to/your/project",\n'
-            '    artifacts_dir="./artifacts",\n'
-            '    model_id="Qwen/Qwen2.5-Coder-1.5B-Instruct",\n'
-            "    quantize=True,\n"
-            ")\n"
-            "results = orch.run_all()\n"
-            "```\n",
-            "### Individual Phases\n",
-            "```python\n"
-            "orch.run_phase1()  # Static analysis\n"
-            "orch.run_phase2()  # Docstring generation\n"
-            "orch.run_phase3()  # README generation\n"
-            "orch.run_phase4()  # Validation\n"
-            "orch.run_phase5()  # Evaluation\n"
-            "orch.run_phase6()  # Artifact diagnosis\n"
-            "orch.run_phase7()  # Artifact enrichment\n"
-            "orch.run_phase8()  # Enhanced README\n"
-            "```\n",
-            "### Output Interpretation\n",
-            "All artifacts are written to `--artifacts-dir`:\n",
-            "| File | Contents |",
-            "|------|----------|",
-            "| `ast.json` | Parsed AST with functions, classes, imports |",
-            "| `doc_artifacts.json` | Generated + enriched docstrings |",
-            "| `dependencies_normalized.json` | Normalised dependency graph |",
-            "| `components.json` | Identified components with roles |",
-            "| `edge_cases.json` | Detected anomalies |",
-            "| `weakness_report.json` | Artifact quality audit results |",
-            "| `README.md` | Generated project README |",
-        ]
+        Groups all enriched function/method/class entries by their source
+        file, then renders full docstring information (signature, parameters,
+        return type, business context, usage example) for each one.  Falls
+        back to raw AST symbol names when enriched data is absent.
+        """
+        lines = ["## Functions & Business Logic\n"]
+        lines.append(
+            "This section documents all key functions, methods, and classes "
+            f"identified in **{self.project_name}**, grouped by source file.\n"
+        )
 
+        # Build file → enriched entries lookup
+        enriched_by_file: Dict[str, List[Dict[str, Any]]] = {}
+        for entry in enriched:
+            f = entry.get("file", "unknown")
+            enriched_by_file.setdefault(f, []).append(entry)
+
+        # Process each source file
+        rendered_files: set = set()
+        for file_path, file_data in ast_data.items():
+            if not isinstance(file_data, dict):
+                continue
+
+            file_enriched = enriched_by_file.get(file_path, [])
+            raw_functions = file_data.get("functions") or []
+            raw_classes = file_data.get("classes") or []
+
+            if not file_enriched and not raw_functions and not raw_classes:
+                continue
+
+            rendered_files.add(file_path)
+            semantic_role = file_data.get("semantic_role") or ""
+            role_hint = f" — *{semantic_role}*" if semantic_role else ""
+            lines.append(f"### `{file_path}`{role_hint}\n")
+
+            if file_enriched:
+                for entry in file_enriched:
+                    name = entry.get("name", "")
+                    etype = entry.get("type", "function")
+                    signature = entry.get("signature", "")
+                    short_desc = entry.get("short_description", "")
+                    detailed_desc = entry.get("detailed_description", "")
+                    business_ctx = entry.get("business_context", "")
+                    params = entry.get("parameters") or []
+                    returns = entry.get("returns") or {}
+                    example = entry.get("example", "")
+                    side_effects = entry.get("side_effects") or []
+
+                    if not name:
+                        continue
+
+                    # Heading: name with type badge
+                    lines.append(f"#### `{name}` _{etype}_\n")
+
+                    # Signature
+                    if signature:
+                        lines.append(f"```python\n{signature}\n```\n")
+
+                    # Short description
+                    if short_desc:
+                        lines.append(f"**Summary:** {short_desc}\n")
+
+                    # Detailed description
+                    if detailed_desc:
+                        lines.append(f"**Details:** {detailed_desc}\n")
+
+                    # Business context
+                    if business_ctx:
+                        lines.append(f"**Business context:** {business_ctx}\n")
+
+                    # Parameters table
+                    if params:
+                        lines.append("**Parameters:**\n")
+                        lines.append("| Name | Type | Required | Description |")
+                        lines.append("|------|------|----------|-------------|")
+                        for p in params:
+                            lines.append(self._render_param_row(p))
+                        lines.append("")
+
+                    # Return type
+                    ret_rendered = self._render_returns(returns)
+                    if ret_rendered:
+                        lines.append(ret_rendered)
+
+                    # Side effects
+                    if side_effects:
+                        effects_str = "; ".join(str(s) for s in side_effects[:4])
+                        lines.append(f"**Side effects:** {effects_str}\n")
+
+                    # Usage example
+                    if example:
+                        lines.append(f"**Example:**\n```python\n{example}\n```\n")
+
+                    lines.append("")
+            else:
+                # Fallback: render raw symbol names from ast_data
+                all_symbols = list(raw_functions) + list(raw_classes)
+                for sym in all_symbols:
+                    if not isinstance(sym, dict):
+                        continue
+                    sym_name = sym.get("name", "")
+                    if sym_name:
+                        lines.append(f"- `{sym_name}`")
+                lines.append("")
+
+        # Render enriched entries whose file wasn't in ast_data
+        for file_path, entries in enriched_by_file.items():
+            if file_path in rendered_files:
+                continue
+            lines.append(f"### `{file_path}`\n")
+            for entry in entries:
+                name = entry.get("name", "")
+                etype = entry.get("type", "function")
+                short_desc = entry.get("short_description", "")
+                detailed_desc = entry.get("detailed_description", "")
+                business_ctx = entry.get("business_context", "")
+                signature = entry.get("signature", "")
+                params = entry.get("parameters") or []
+                returns = entry.get("returns") or {}
+                example = entry.get("example", "")
+
+                if not name:
+                    continue
+
+                lines.append(f"#### `{name}` _{etype}_\n")
+                if signature:
+                    lines.append(f"```python\n{signature}\n```\n")
+                if short_desc:
+                    lines.append(f"**Summary:** {short_desc}\n")
+                if detailed_desc:
+                    lines.append(f"**Details:** {detailed_desc}\n")
+                if business_ctx:
+                    lines.append(f"**Business context:** {business_ctx}\n")
+                if params:
+                    lines.append("**Parameters:**\n")
+                    lines.append("| Name | Type | Required | Description |")
+                    lines.append("|------|------|----------|-------------|")
+                    for p in params:
+                        lines.append(self._render_param_row(p))
+                    lines.append("")
+                ret_rendered = self._render_returns(returns)
+                if ret_rendered:
+                    lines.append(ret_rendered)
+                if example:
+                    lines.append(f"**Example:**\n```python\n{example}\n```\n")
+                lines.append("")
+
+        if len(lines) <= 2:
+            lines.append("_No function data available from analysis._")
+
+        return "\n".join(lines)
+
+    def _section_usage_guide(
+        self,
+        enriched: List[Dict[str, Any]],
+        ast_data: Dict[str, Any],
+    ) -> str:
+        lines = ["## Usage Guide\n"]
+
+        # Find likely entry points: files named main.py, __main__.py,
+        # or functions named main/run/start/execute at module level
+        entry_points: List[Dict[str, Any]] = []
+        for file_path, file_data in ast_data.items():
+            if not isinstance(file_data, dict):
+                continue
+            basename = Path(file_path).name.lower()
+            if basename in ("main.py", "__main__.py", "app.py", "run.py", "cli.py"):
+                fns = file_data.get("functions") or []
+                entry_points.append({"file": file_path, "functions": fns})
+
+        if not entry_points:
+            # Fall back: look for a main() function anywhere
+            for file_path, file_data in ast_data.items():
+                if not isinstance(file_data, dict):
+                    continue
+                fns = file_data.get("functions") or []
+                for fn in fns:
+                    if isinstance(fn, dict) and fn.get("name") in (
+                        "main", "run", "start", "execute", "cli"
+                    ):
+                        entry_points.append({"file": file_path, "functions": [fn]})
+                        break
+
+        if entry_points:
+            lines.append("### Entry Points\n")
+            for ep in entry_points[:3]:
+                lines.append(f"**`{ep['file']}`**")
+                for fn in ep["functions"][:4]:
+                    if isinstance(fn, dict):
+                        fname = fn.get("name", "")
+                        if fname:
+                            lines.append(f"- `{fname}()`")
+            lines.append("")
+
+        # Examples from enriched doc_artifacts
+        example_entries = [e for e in enriched if e.get("example")][:5]
         if example_entries:
-            lines += ["", "### Usage Examples from Codebase\n"]
+            lines.append("### Code Examples\n")
             for entry in example_entries:
                 name = entry.get("name", "")
                 example = entry.get("example", "")
-                lines += [f"**`{name}`:**", f"```python\n{example}\n```", ""]
+                short = entry.get("short_description", "")
+                if short:
+                    lines.append(f"**`{name}`** — {short}")
+                else:
+                    lines.append(f"**`{name}`:**")
+                lines += [f"```python\n{example}\n```", ""]
+
+        if not entry_points and not example_entries:
+            lines.append(
+                f"No explicit entry points were detected in **{self.project_name}**. "
+                "Refer to the Functions & Business Logic section for the full public API."
+            )
 
         return "\n".join(lines)
 
     def _section_developer_guide(self, ast_data: Dict[str, Any]) -> str:
-        module_list = "\n".join(
-            f"│   ├── {Path(k).name}" for k in list(ast_data.keys())[:8]
-        )
-        return (
-            "## Developer Guide\n\n"
-            "### Project Structure\n\n"
-            "```\n"
-            f"{self.project_name}/\n"
-            "├── agents/          # Writer, Critic, ArtifactCritic, ArtifactEnricher\n"
-            "├── pipeline/        # Orchestrator + per-phase modules\n"
-            "│   ├── orchestrator.py\n"
-            "│   ├── analyzer.py\n"
-            "│   ├── docstring_generator.py\n"
-            "│   ├── readme_generator.py\n"
-            "│   ├── validator.py\n"
-            "│   └── evaluator.py\n"
-            "├── schemas/         # Pydantic data contracts\n"
-            "├── utils/           # Shared utilities\n"
-            "├── artifacts/       # Generated outputs (git-ignored)\n"
-            f"└── ... ({len(ast_data)} source modules analysed)\n"
-            "```\n\n"
-            "### Extension Guide\n\n"
-            "1. **New agent** — subclass `agents.base_agent.BaseAgent`, implement "
-            "`run() -> Dict[str, Any]`.\n"
-            "2. **New phase** — add a `run_phaseN()` method to "
-            "`pipeline.orchestrator.Orchestrator` and call it from `run_all()`.\n"
-            "3. **New schema** — add a Pydantic model to `schemas/enriched_artifacts.py`.\n\n"
-            "### Testing Strategy\n\n"
+        # Build actual folder tree from ast_data file paths
+        tree_lines: List[str] = [f"{self.project_name}/"]
+        dirs_seen: set = set()
+        for file_path in sorted(ast_data.keys()):
+            parts = Path(file_path).parts
+            # Show directory entries
+            for depth in range(len(parts) - 1):
+                dir_path = "/".join(parts[: depth + 1])
+                if dir_path not in dirs_seen:
+                    dirs_seen.add(dir_path)
+                    indent = "    " * depth
+                    tree_lines.append(f"{indent}├── {parts[depth]}/")
+            # File entry
+            indent = "    " * (len(parts) - 1)
+            tree_lines.append(f"{indent}├── {parts[-1]}")
+
+        tree_str = "\n".join(tree_lines[:40])
+
+        lines = [
+            "## Developer Guide\n",
+            "### Project Structure\n",
+            "```",
+            tree_str,
+            "```\n",
+            "### Testing\n",
             "```bash\n"
             "pytest tests/ -v\n"
-            "```\n\n"
-            "Unit tests cover utility functions and critic heuristics. "
-            "Integration tests run a minimal pipeline against a fixture repository."
-        )
+            "```\n",
+        ]
 
-    def _section_deployment(self) -> str:
-        return (
-            "## Deployment & Operations\n\n"
-            "### Infrastructure\n\n"
-            "The pipeline runs as a single Python process and requires no external "
-            "services. For GPU-accelerated inference, a CUDA 11.8+ environment is "
-            "recommended (Google Colab T4 is fully supported).\n\n"
-            "### Monitoring\n\n"
-            "Performance metrics (wall-clock time, peak GPU/CPU memory) are logged "
-            "to stdout for every phase via the `@profile_phase` decorator.\n\n"
-            "### Performance\n\n"
-            "| Phase | Typical duration | Memory |\n"
-            "|-------|-----------------|--------|\n"
-            "| Phase 1: Static Analysis | ~10 s | Low |\n"
-            "| Phase 2: Docstring Generation | ~1–3 s/fn | Moderate (GPU) |\n"
-            "| Phase 3–5: README + Validation | ~5–10 s | Low |\n"
-            "| Phase 6–7: Diagnosis + Enrichment | <1 s | Low |\n"
-            "| Phase 8: Enhanced README | <1 s | Low |\n\n"
-            "Phase 1 (analysis) takes ~10 s on a mid-range laptop. "
-            "Phase 2 (docstrings) depends on model size and number of functions; "
-            "expect ~1–3 s per function on a T4 GPU with 4-bit quantisation."
-        )
+        return "\n".join(lines)
 
-    def _section_troubleshooting(self) -> str:
-        return (
-            "## Troubleshooting & FAQs\n\n"
-            "### Common Failures\n\n"
-            "| Symptom | Likely cause | Fix |\n"
-            "|---------|--------------|-----|\n"
-            "| `CUDA out of memory` | Model too large for available GPU | "
-            "Enable `quantize=True` or use `device='cpu'` |\n"
-            "| `doc_artifacts.json` not found | Phase 2 did not run | "
-            "Call `run_phase2()` before `run_phase6()` |\n"
-            "| `Prompt 'readme' not found` | Missing prompt template file | "
-            "Ensure `phase3_readme/prompts/readme.md` exists |\n"
-            "| All names are `unknown` | AST parser failed | "
-            "Check `tree-sitter` installation and Python version compatibility |\n\n"
-            "### Edge Cases\n\n"
-            "- **Empty repository** — Phase 1 will produce empty artifact files; "
-            "subsequent phases will complete with no output.\n"
-            "- **Non-Python files** — the pipeline is optimised for Python but "
-            "`StructuralAgent` has limited support for other languages.\n\n"
-            "### Support\n\n"
-            "Open an issue in the repository with the contents of "
-            "`artifacts/weakness_report.json` and the full console output."
-        )
+    def _section_deployment(self, external_deps: List[str]) -> str:
+        dep_list = external_deps[:10]
+
+        lines = [
+            "## Deployment & Operations\n",
+            "### Infrastructure\n",
+            f"**{self.project_name}** runs as a Python application. "
+            "No external services are required unless specified by the "
+            "project's own configuration.\n",
+        ]
+
+        if dep_list:
+            lines += [
+                "### Runtime dependencies\n",
+                "```text",
+            ]
+            lines += dep_list
+            lines += ["```\n"]
+
+        lines += [
+            "### Running in production\n",
+            "```bash\n"
+            "# Install dependencies\n"
+            "pip install -r requirements.txt\n\n"
+            "# Run the application\n"
+            f"python -m {self.project_name.replace('-', '_')}\n"
+            "# or\n"
+            "python main.py\n"
+            "```\n",
+        ]
+
+        return "\n".join(lines)
+
+    def _section_troubleshooting(self, enriched: List[Dict[str, Any]]) -> str:
+        # Collect any raises documented in enriched entries
+        known_exceptions: List[str] = []
+        for entry in enriched:
+            raises = entry.get("raises") or []
+            for r in raises:
+                if isinstance(r, dict):
+                    exc = r.get("exception", "")
+                    cond = r.get("condition", "")
+                    if exc:
+                        known_exceptions.append(
+                            f"| `{exc}` | {cond} | Check the conditions described in the "
+                            "Functions & Business Logic section |"
+                        )
+
+        lines = [
+            "## Troubleshooting & FAQs\n",
+            "### Common Issues\n",
+        ]
+
+        if known_exceptions:
+            lines += [
+                "The following exceptions are documented in the project source:\n",
+                "| Exception | Condition | Resolution |",
+                "|-----------|-----------|------------|",
+            ]
+            lines += list(dict.fromkeys(known_exceptions))[:10]
+            lines.append("")
+
+        lines += [
+            "### General Tips\n",
+            f"- Ensure all dependencies for **{self.project_name}** are installed "
+            "(`pip install -r requirements.txt`).",
+            "- Check Python version compatibility (3.8+ recommended).",
+            "- Review function signatures and parameter types in the "
+            "Functions & Business Logic section above.",
+            "- Enable verbose/debug logging if the project provides that option.",
+            "",
+            "### Support\n",
+            "Open an issue in the project repository with a description of the "
+            "problem, the relevant error message, and steps to reproduce.",
+        ]
+
+        return "\n".join(lines)
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _render_param_row(p: Any) -> str:
+        """Render a single parameter as a Markdown table row."""
+        if not isinstance(p, dict):
+            return "| — | Any | ✓ |  |"
+        pname = p.get("name", "")
+        ptype = p.get("type", "Any")
+        preq = "✓" if p.get("required", True) else "✗"
+        pdesc = p.get("description", "")
+        return f"| `{pname}` | `{ptype}` | {preq} | {pdesc} |"
+
+    @staticmethod
+    def _render_returns(returns: Any) -> str:
+        """Render a returns dict as a Markdown string, or '' if empty."""
+        if not isinstance(returns, dict):
+            return ""
+        ret_type = returns.get("type", "")
+        ret_desc = returns.get("description", "")
+        if not ret_type and not ret_desc:
+            return ""
+        ret_str = f"`{ret_type}`" if ret_type else ""
+        if ret_desc:
+            ret_str = f"{ret_str} — {ret_desc}" if ret_str else ret_desc
+        return f"**Returns:** {ret_str}\n"
+
+    def _llm_generate(self, prompt: str, max_tokens: int = 256) -> str:
+        """
+        Generate text via the Writer's underlying LLM.
+
+        Returns an empty string on any error so callers can safely ignore
+        the result when the LLM is unavailable.
+        """
+        try:
+            return self.writer.llm.generate(
+                prompt=prompt,
+                max_new_tokens=max_tokens,
+                temperature=0.2,
+            )
+        except Exception:
+            return ""
 
     def _build_analysis_summary(self) -> str:
         """Build a compact text summary used by the standard (6-section) path."""
