@@ -285,7 +285,7 @@ class Orchestrator:
         return results
 
     def run_phase8(self) -> Dict[str, Any]:
-        """Run Phase 8: Enhanced README Generation (10 sections)."""
+        """Run Phase 8: Enhanced README Generation (11 sections, .docs output)."""
         print("\n━━━ PHASE 8: Enhanced README ━━━")
 
         if "phase1" not in self.results:
@@ -304,6 +304,11 @@ class Orchestrator:
 
         results = generator.run()
         self.results["phase8"] = results
+
+        # Print .docs output location if available
+        if "docs_path" in results:
+            print(f"📄 Documentation: {results['docs_path']}")
+
         return results
 
     def run_all(self) -> Dict[str, Any]:
@@ -323,6 +328,8 @@ class Orchestrator:
 
         print("\n🎉 Documentation complete!")
         print(f"README: {self.repo_path / 'README.md'}")
+        if "phase8" in self.results and "docs_path" in self.results["phase8"]:
+            print(f"Documentation (.docs): {self.results['phase8']['docs_path']}")
         print(f"Artifacts: {self.artifacts_dir}")
 
         return self.results
