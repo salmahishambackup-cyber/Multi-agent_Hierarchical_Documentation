@@ -183,6 +183,9 @@ def validate_all_outputs(
             ast_data = json.load(f)
     
     if ast_data is not None:
+        # Handle wrapped format from write_json_with_timestamp
+        if isinstance(ast_data, dict) and "data" in ast_data:
+            ast_data = ast_data["data"]
         reports["ast"] = validate_ast_output(ast_data)
     
     # Validate dependencies
@@ -205,6 +208,9 @@ def validate_all_outputs(
             components_data = json.load(f)
     
     if components_data is not None:
+        # Handle wrapped format from write_json_with_timestamp
+        if isinstance(components_data, dict) and "data" in components_data:
+            components_data = components_data["data"]
         reports["components"] = validate_component_output(components_data)
     
     return reports

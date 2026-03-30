@@ -13,6 +13,7 @@ from analyzer import (
     build_dependency_graph,
     extract_components,
     detect_language,
+    compute_file_metrics,
 )
 from utils import write_json, ensure_dir
 from utils.profiler import profile_phase
@@ -61,6 +62,10 @@ class Analyzer:
                 ast_info = extract_ast_info(str(file_path), content, str(self.repo_path))
                 
                 if ast_info:
+                    # Enrich with file metrics
+                    language = ast_info.get("language", "python")
+                    metrics = compute_file_metrics(ast_info, content, language)
+                    ast_info["metrics"] = metrics
                     ast_data[rel_path] = ast_info
                     all_modules.append(rel_path)
             except Exception as e:

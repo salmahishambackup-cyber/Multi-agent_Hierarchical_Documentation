@@ -11,6 +11,7 @@ from analyzer import (
     build_dependency_graph,
     extract_components,
     detect_language,
+    compute_file_metrics,
 )
 from utils.repo_scanner import scan_repo_files, clone_repo
 from utils.file_filter import is_allowed_file, filter_source_files
@@ -258,6 +259,10 @@ class StructuralAgent:
                 )
                 
                 if ast_info:
+                    # Enrich with file metrics
+                    language = ast_info.get("language", "unknown")
+                    metrics = compute_file_metrics(ast_info, content, language)
+                    ast_info["metrics"] = metrics
                     ast_data[rel_path] = ast_info
             except Exception as e:
                 print(f"Warning: Failed to parse {rel_path}: {e}")

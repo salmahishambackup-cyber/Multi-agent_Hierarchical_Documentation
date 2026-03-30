@@ -34,6 +34,12 @@ FUNCTION_NODES = {
     "csharp": {"method_declaration"},
 }
 
+DECORATOR_NODES = {
+    "python": {"decorator"},
+    "java": {"annotation"},
+    "typescript": {"decorator"},
+}
+
 
 # -------------------------------
 # Helpers
@@ -84,6 +90,74 @@ def extract_function_signature(node, source: bytes) -> str | None:
     return f"{name}{params}"
 
 
+def _extract_docstring(node, source: bytes) -> str | None:
+    """Extract docstring from a class or function body (Python-specific)."""
+    body = node.child_by_field_name("body")
+    if body is None:
+        return None
+    for child in body.children:
+        if child.type == "expression_statement":
+            for sub in child.children:
+                if sub.type == "string":
+                    raw = extract_text(sub, source)
+                    if raw:
+                        # Strip triple quotes
+                        for q in ('"""', "'''"):
+                            if raw.startswith(q) and raw.endswith(q):
+                                return raw[3:-3].strip()
+                        return raw.strip("\"'").strip()
+        # First non-comment, non-newline node isn't a string → no docstring
+        if child.type not in ("comment", "newline"):
+            break
+    return None
+
+
+def _extract_decorators(node, source: bytes, lang: str) -> list[str]:
+    """Extract decorator names from a function or class node."""
+    decorators = []
+    dec_types = DECORATOR_NODES.get(lang, set())
+    if not dec_types:
+        return decorators
+    # Decorators appear as preceding siblings or child nodes
+    for child in node.children:
+        if child.type in dec_types:
+            text = extract_text(child, source)
+            if text:
+                decorators.append(text)
+    return decorators
+
+
+def _extract_base_classes(node, source: bytes) -> list[str]:
+    """Extract base class names from a class node (Python-specific)."""
+    bases = []
+    superclasses = node.child_by_field_name("superclasses")
+    if superclasses is None:
+        # Try argument_list (used by Python tree-sitter grammar)
+        for child in node.children:
+            if child.type == "argument_list":
+                superclasses = child
+                break
+    if superclasses is None:
+        return bases
+    for child in superclasses.children:
+        if child.type not in ("(", ")", ","):
+            text = extract_text(child, source)
+            if text:
+                bases.append(text)
+    return bases
+
+
+def _extract_return_type(node, source: bytes) -> str | None:
+    """Extract return type annotation from a function node (Python-specific)."""
+    ret = node.child_by_field_name("return_type")
+    if ret:
+        text = extract_text(ret, source)
+        if text and text.startswith("->"):
+            return text[2:].strip()
+        return text
+    return None
+
+
 # -------------------------------
 # Main AST walker
 # -------------------------------
@@ -120,7 +194,7 @@ def walk_tree(node, source, results, lang, file_path, depth=0):
     if node_type in CLASS_NODES.get(lang, set()) and depth == 1:
         name = extract_name(node, source)
         if name:
-            results["classes"].append({
+            entry = {
                 "node_id": make_ast_node_id(file_path, node),
                 "kind": "class_definition",
                 "symbol": name,
@@ -129,7 +203,17 @@ def walk_tree(node, source, results, lang, file_path, depth=0):
                     "start_byte": node.start_byte,
                     "end_byte": node.end_byte
                 }
-            })
+            }
+            docstring = _extract_docstring(node, source)
+            if docstring:
+                entry["docstring"] = docstring
+            decorators = _extract_decorators(node, source, lang)
+            if decorators:
+                entry["decorators"] = decorators
+            bases = _extract_base_classes(node, source)
+            if bases:
+                entry["bases"] = bases
+            results["classes"].append(entry)
 
     # -------- FUNCTIONS / METHODS --------
     if node_type in FUNCTION_NODES.get(lang, set()):
@@ -137,7 +221,7 @@ def walk_tree(node, source, results, lang, file_path, depth=0):
         if name_node and depth in (1, 2):
             sig = extract_function_signature(node, source)
             if sig:
-                results["functions"].append({
+                entry = {
                     "node_id": make_ast_node_id(file_path, node),
                     "kind": "function_definition",
                     "symbol": sig,
@@ -146,7 +230,17 @@ def walk_tree(node, source, results, lang, file_path, depth=0):
                         "start_byte": node.start_byte,
                         "end_byte": node.end_byte
                     }
-                })
+                }
+                docstring = _extract_docstring(node, source)
+                if docstring:
+                    entry["docstring"] = docstring
+                decorators = _extract_decorators(node, source, lang)
+                if decorators:
+                    entry["decorators"] = decorators
+                ret_type = _extract_return_type(node, source)
+                if ret_type:
+                    entry["return_type"] = ret_type
+                results["functions"].append(entry)
 
     for child in node.children:
         walk_tree(child, source, results, lang, file_path, depth + 1)
