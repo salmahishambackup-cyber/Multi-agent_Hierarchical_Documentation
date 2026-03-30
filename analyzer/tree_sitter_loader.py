@@ -62,7 +62,7 @@ def get_parser(language: str):
             parser = strategy(language)
             _PARSER_CACHE[language] = parser
             return parser
-        except (TypeError, ImportError, OSError, Exception):
+        except Exception:
             continue
 
     _PARSER_CACHE[language] = _UNAVAILABLE
