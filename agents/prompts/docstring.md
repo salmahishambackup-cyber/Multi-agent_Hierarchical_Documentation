@@ -20,4 +20,11 @@ You are an expert Python documentation writer. Generate a clear, concise Google-
 ```
 
 ## Output Format:
-Return ONLY the docstring content (without the triple quotes). Start with a one-line summary, then add details as needed.
+Return ONLY the docstring body — the text that goes between the triple quotes.
+Do NOT include:
+- The function definition (e.g., `def func_name(...):`)
+- The class definition (e.g., `class ClassName:`)
+- Triple quotes (`"""`)
+- Markdown code fences (``` ```python ```)
+
+Start with a one-line summary, then add details as needed.

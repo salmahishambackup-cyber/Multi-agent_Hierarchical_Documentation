@@ -4,6 +4,7 @@ Phase 2: Docstring generation using lightweight LLM.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import networkx as nx
@@ -11,6 +12,63 @@ import networkx as nx
 from agents import Writer
 from utils import get_cache_key, load_from_cache, save_to_cache, write_json
 from utils.profiler import profile_phase
+
+
+def _extract_name(info: Dict[str, Any]) -> str:
+    """Extract the clean function/class name from an AST entry.
+
+    The AST stores function signatures under the ``"symbol"`` key
+    (e.g. ``"func_name(param1, param2)"``).  For classes, ``"symbol"``
+    contains just the class name.  This helper strips everything after
+    the opening parenthesis so the returned value is always the bare
+    name.  Falls back to ``"name"`` then ``"unknown"``.
+    """
+    symbol = info.get("symbol", "")
+    if symbol:
+        # Strip parameters: "func_name(a, b)" → "func_name"
+        return symbol.split("(", 1)[0].strip()
+    return info.get("name", "unknown")
+
+
+# Regex patterns used to clean raw LLM output
+_RE_DEF_LINE = re.compile(
+    r"^\s*(?:async\s+)?def\s+\w+\s*\(.*?\)\s*(?:->.*?)?:\s*$",
+    re.MULTILINE,
+)
+_RE_CLASS_LINE = re.compile(
+    r"^\s*class\s+\w+.*?:\s*$",
+    re.MULTILINE,
+)
+_RE_TRIPLE_QUOTES = re.compile(r'^"{3}|"{3}\s*$', re.MULTILINE)
+_RE_CODE_FENCE = re.compile(r"^```(?:python)?\s*$", re.MULTILINE)
+
+
+def _clean_docstring(raw: str) -> str:
+    """Post-process LLM output to yield a pure Google-style docstring.
+
+    Strips:
+    * ``def func_name(...):``, ``class ClassName:`` lines
+    * Triple-quote wrappers (``\"\"\"``)
+    * Markdown code-fence markers (`` ```python ``)
+    * Leading/trailing blank lines
+    """
+    text = raw
+    # Remove function/class definition lines
+    text = _RE_DEF_LINE.sub("", text)
+    text = _RE_CLASS_LINE.sub("", text)
+    # Remove triple quotes
+    text = _RE_TRIPLE_QUOTES.sub("", text)
+    # Remove code fences
+    text = _RE_CODE_FENCE.sub("", text)
+    # Collapse leading/trailing whitespace while preserving internal structure
+    lines = text.split("\n")
+    # Strip leading blank lines
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    # Strip trailing blank lines
+    while lines and not lines[-1].strip():
+        lines.pop()
+    return "\n".join(lines)
 
 
 class DocstringGenerator:
@@ -174,12 +232,15 @@ class DocstringGenerator:
     
     def _generate_function_docstring(self, module_path: str, func_info: Dict[str, Any]) -> Dict[str, Any]:
         """Generate docstring for a function."""
+        name = _extract_name(func_info)
+
         # Read function code using byte positions
         full_path = self.repo_path / module_path
         try:
             content = full_path.read_bytes()
-            start = func_info.get("start_byte", 0)
-            end = func_info.get("end_byte", len(content))
+            loc = func_info.get("location", {})
+            start = loc.get("start_byte", func_info.get("start_byte", 0))
+            end = loc.get("end_byte", func_info.get("end_byte", len(content)))
             
             # Limit extraction to reasonable size (10KB max)
             MAX_CODE_SIZE = 10000
@@ -188,7 +249,7 @@ class DocstringGenerator:
             
             code = content[start:end].decode("utf-8", errors="ignore")
         except Exception:
-            return {"name": func_info.get("name", "unknown"), "error": "Could not read function"}
+            return {"name": name, "error": "Could not read function"}
         
         # Check cache
         cache_key = get_cache_key(code)
@@ -196,8 +257,8 @@ class DocstringGenerator:
         
         if cached:
             return {
-                "name": func_info.get("name", "unknown"),
-                "docstring": cached["docstring"],
+                "name": name,
+                "docstring": _clean_docstring(cached["docstring"]),
                 "cached": True,
             }
         
@@ -206,27 +267,31 @@ class DocstringGenerator:
         
         # Generate docstring
         try:
-            docstring = self.writer.generate_docstring(code, context)
+            raw_docstring = self.writer.generate_docstring(code, context)
+            docstring = _clean_docstring(raw_docstring)
             
             result = {"docstring": docstring}
             save_to_cache(self.cache_dir, cache_key, result, "docstrings")
             
             return {
-                "name": func_info.get("name", "unknown"),
+                "name": name,
                 "docstring": docstring,
                 "cached": False,
             }
         except Exception as e:
-            return {"name": func_info.get("name", "unknown"), "error": str(e)}
+            return {"name": name, "error": str(e)}
     
     def _generate_class_docstring(self, module_path: str, class_info: Dict[str, Any]) -> Dict[str, Any]:
         """Generate docstring for a class."""
+        name = _extract_name(class_info)
+
         # Similar to function but for class
         full_path = self.repo_path / module_path
         try:
             content = full_path.read_bytes()
-            start = class_info.get("start_byte", 0)
-            end = class_info.get("end_byte", len(content))
+            loc = class_info.get("location", {})
+            start = loc.get("start_byte", class_info.get("start_byte", 0))
+            end = loc.get("end_byte", class_info.get("end_byte", len(content)))
             
             # Limit extraction to reasonable size (10KB max)
             MAX_CODE_SIZE = 10000
@@ -239,7 +304,7 @@ class DocstringGenerator:
             code_lines = code.split("\n")[:20]
             code = "\n".join(code_lines)
         except Exception:
-            return {"name": class_info.get("name", "unknown"), "error": "Could not read class"}
+            return {"name": name, "error": "Could not read class"}
         
         # Check cache
         cache_key = get_cache_key(code)
@@ -247,8 +312,8 @@ class DocstringGenerator:
         
         if cached:
             return {
-                "name": class_info.get("name", "unknown"),
-                "docstring": cached["docstring"],
+                "name": name,
+                "docstring": _clean_docstring(cached["docstring"]),
                 "cached": True,
             }
         
@@ -257,18 +322,19 @@ class DocstringGenerator:
         
         # Generate docstring
         try:
-            docstring = self.writer.generate_docstring(code, context)
+            raw_docstring = self.writer.generate_docstring(code, context)
+            docstring = _clean_docstring(raw_docstring)
             
             result = {"docstring": docstring}
             save_to_cache(self.cache_dir, cache_key, result, "docstrings")
             
             return {
-                "name": class_info.get("name", "unknown"),
+                "name": name,
                 "docstring": docstring,
                 "cached": False,
             }
         except Exception as e:
-            return {"name": class_info.get("name", "unknown"), "error": str(e)}
+            return {"name": name, "error": str(e)}
     
     def _build_context(self, module_path: str) -> str:
         """Build context string for a module."""
