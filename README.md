@@ -3,7 +3,7 @@
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 
-An automated documentation generation system that analyses source code repositories using tree-sitter AST parsing (7 languages) and an LLM (Qwen2.5-Coder) to produce Google-style docstrings, a comprehensive README, and enriched documentation artifacts — all through an 8-phase pipeline orchestrated by `pipeline/orchestrator.py`.
+An automated documentation generation system that analyzes source code repositories using tree-sitter AST parsing (7 languages) and an LLM (Qwen2.5-Coder) to produce Google-style docstrings, a comprehensive README, and enriched documentation artifacts — all through an 8-phase pipeline orchestrated by `pipeline/orchestrator.py`.
 
 ## Overview
 
@@ -297,7 +297,7 @@ model_id = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
 model_id = "Qwen/Qwen2.5-Coder-3B-Instruct"
 ```
 
-### Memory Optimisation
+### Memory Optimization
 
 `LLMClient` in `utils/llm_client.py` supports BitsAndBytes 4-bit quantization:
 
@@ -348,7 +348,7 @@ StructuralAgent(
 - **GPU memory:** The full pipeline requires ~7.6 GB VRAM without quantization. Use `quantize=True` and the 1.5B model on T4 GPUs.
 - **Caching:** Phase 2 returns cached docstrings if file contents haven't changed. Delete `./artifacts/cache/` to force regeneration.
 - **LLM accuracy:** Generated docstrings and README content reflect the LLM's interpretation. Always review before publishing.
-- **Non-Python projects:** Phase 2 docstring generation is optimised for Python. Other languages receive basic documentation via tree-sitter AST extraction only.
+- **Non-Python projects:** Phase 2 docstring generation is optimized for Python. Other languages receive basic documentation via tree-sitter AST extraction only.
 
 ## Enhancement Changelog
 
