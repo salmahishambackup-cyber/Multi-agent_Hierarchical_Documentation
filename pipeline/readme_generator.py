@@ -125,8 +125,14 @@ class ReadmeGenerator:
     # ------------------------------------------------------------------
 
     def _generate_standard(self) -> str:
-        """Generate README with 6 sections via a single LLM call."""
-        analysis_summary = self._build_analysis_summary()
+        """Generate README with 6 sections via a single LLM call.
+
+        Loads doc_artifacts.json (Phase 2 output) when available so the
+        LLM receives actual function descriptions and business context
+        rather than bare statistics.
+        """
+        enriched = self._load_enriched_doc_artifacts()
+        analysis_summary = self._build_analysis_summary(enriched=enriched)
         print("Generating README (6 sections)...")
         return self.writer.generate_readme(
             project_name=self.project_name,
@@ -966,7 +972,13 @@ class ReadmeGenerator:
             "snippets where appropriate.\n"
             "5. Do NOT include generic filler. Every sentence must be "
             f"specific to the '{self.project_name}' project.\n"
-            "6. Keep the existing structure but make it substantially richer.\n\n"
+            "6. Keep the existing structure but make it substantially richer.\n"
+            "7. ONLY document what exists in the codebase context above. "
+            "Do NOT hallucinate functions, classes, modules, or features "
+            "that are not listed in the context.\n"
+            "8. Every claim must be traceable to a specific module, function, "
+            "or class from the context. If you cannot trace a statement to "
+            "the codebase context, omit it.\n\n"
             "Return ONLY the expanded Markdown section content."
         )
 
@@ -1045,12 +1057,23 @@ class ReadmeGenerator:
         except Exception:
             return ""
 
-    def _build_analysis_summary(self) -> str:
-        """Build a compact text summary used by the standard (6-section) path."""
+    def _build_analysis_summary(
+        self,
+        enriched: Optional[List[Dict[str, Any]]] = None,
+    ) -> str:
+        """Build a detailed text summary used by the standard (6-section) path.
+
+        When *enriched* doc-artifact entries are supplied (from Phase 2),
+        the summary includes actual function/class names with their short
+        descriptions and business context so the LLM can produce
+        project-specific, traceable documentation.
+        """
         stats = self.analysis_results.get("stats", {})
         ast_data = self.analysis_results.get("ast_data", {})
         deps_data = self.analysis_results.get("deps_data", {})
         components_data = self.analysis_results.get("components_data", {})
+        if enriched is None:
+            enriched = []
 
         summary_parts = [
             "**Statistics:**",
@@ -1059,25 +1082,85 @@ class ReadmeGenerator:
             f"- Classes: {stats.get('classes', 0)}",
         ]
 
+        # ---- Source modules with their functions/classes ----
         if ast_data:
-            summary_parts.append("\n**Key Modules:**")
-            for module in list(ast_data.keys())[:5]:
-                summary_parts.append(f"- {module}")
-
-        if components_data and "components" in components_data:
-            summary_parts.append(
-                f"\n**Components:** {len(components_data['components'])} identified"
-            )
-
-        if deps_data:
-            external_deps = deps_data.get("external_dependencies", {})
-            if external_deps:
-                unique_deps: set = set()
-                for deps_list in external_deps.values():
-                    unique_deps.update(deps_list)
-                summary_parts.append(
-                    f"\n**External Dependencies:** {len(unique_deps)} packages"
+            summary_parts.append("\n**Source Modules & Symbols:**")
+            for fpath, fdata in list(ast_data.items())[:15]:
+                if not isinstance(fdata, dict):
+                    continue
+                fns = fdata.get("functions") or []
+                cls = fdata.get("classes") or []
+                fn_names = [
+                    f.get("name", "")
+                    for f in fns[:6]
+                    if isinstance(f, dict) and f.get("name")
+                ]
+                cls_names = [
+                    c.get("name", "")
+                    for c in cls[:4]
+                    if isinstance(c, dict) and c.get("name")
+                ]
+                symbols = ", ".join(
+                    [f"`{n}()`" for n in fn_names]
+                    + [f"`{n}`" for n in cls_names]
                 )
+                entry = f"- `{fpath}`"
+                if symbols:
+                    entry += f": {symbols}"
+                summary_parts.append(entry)
+
+        # ---- Enriched docstring context (from Phase 2 artifacts) ----
+        if enriched:
+            summary_parts.append(
+                "\n**Function & Class Descriptions (from generated docstrings):**"
+            )
+            seen: set = set()
+            for entry in enriched[:25]:
+                name = entry.get("name", "")
+                short = entry.get("short_description", "").strip()
+                bctx = entry.get("business_context", "").strip()
+                if not name or name in seen:
+                    continue
+                seen.add(name)
+                desc = short or bctx or ""
+                if desc:
+                    summary_parts.append(f"- `{name}`: {desc}")
+
+        # ---- Components ----
+        if components_data:
+            comps = components_data
+            if isinstance(comps, dict):
+                comps = comps.get("components") or []
+            if isinstance(comps, list) and comps:
+                summary_parts.append(
+                    f"\n**Components:** {len(comps)} identified"
+                )
+                for comp in comps[:6]:
+                    if isinstance(comp, dict):
+                        cname = comp.get("name") or comp.get("component_id") or ""
+                        crole = comp.get("business_role") or comp.get("type") or ""
+                        if cname:
+                            summary_parts.append(f"- {cname}: {crole}")
+
+        # ---- External dependencies (actual names) ----
+        if deps_data:
+            external = deps_data.get("external_dependencies", {})
+            if isinstance(external, dict):
+                unique_deps: set = set()
+                for deps_list in external.values():
+                    if isinstance(deps_list, list):
+                        unique_deps.update(deps_list)
+                if unique_deps:
+                    dep_names = ", ".join(sorted(unique_deps)[:15])
+                    summary_parts.append(
+                        f"\n**External Dependencies:** {dep_names}"
+                    )
+
+        # ---- File structure tree (compact) ----
+        if ast_data:
+            summary_parts.append("\n**File Structure:**")
+            for fpath in sorted(ast_data.keys())[:20]:
+                summary_parts.append(f"  {fpath}")
 
         return "\n".join(summary_parts)
 
