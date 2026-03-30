@@ -1091,14 +1091,14 @@ class ReadmeGenerator:
                 fns = fdata.get("functions") or []
                 cls = fdata.get("classes") or []
                 fn_names = [
-                    f.get("name", "")
+                    f.get("symbol", f.get("name", "")).split("(", 1)[0].strip()
                     for f in fns[:6]
-                    if isinstance(f, dict) and f.get("name")
+                    if isinstance(f, dict) and (f.get("symbol") or f.get("name"))
                 ]
                 cls_names = [
-                    c.get("name", "")
+                    c.get("symbol", c.get("name", "")).split("(", 1)[0].strip()
                     for c in cls[:4]
-                    if isinstance(c, dict) and c.get("name")
+                    if isinstance(c, dict) and (c.get("symbol") or c.get("name"))
                 ]
                 symbols = ", ".join(
                     [f"`{n}()`" for n in fn_names]

@@ -39,7 +39,7 @@ _RE_CLASS_LINE = re.compile(
     r"^\s*class\s+\w+.*?:\s*$",
     re.MULTILINE,
 )
-_RE_TRIPLE_QUOTES = re.compile(r'^"{3}|"{3}\s*$', re.MULTILINE)
+_RE_TRIPLE_QUOTES = re.compile(r'^\s*"{3}\s*$', re.MULTILINE)
 _RE_CODE_FENCE = re.compile(r"^```(?:python)?\s*$", re.MULTILINE)
 
 
