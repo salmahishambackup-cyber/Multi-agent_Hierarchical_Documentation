@@ -290,7 +290,12 @@ def extract_ast_info(file_path: str, content: bytes, repo_root: str = None) -> d
         normalized_file_path = normalize_file_path(file_path, repo_root)
 
     # Try tree-sitter first
-    parser = get_parser(language)
+    try:
+        parser = get_parser(language)
+    except Exception:
+        # get_parser() may raise (e.g. tree-sitter version mismatch)
+        parser = None
+
     if parser is not None:
         try:
             tree = parser.parse(content)

@@ -265,6 +265,16 @@ class StructuralAgent:
                     ast_info["metrics"] = metrics
                     ast_data[rel_path] = ast_info
             except Exception as e:
+                # Safety-net: try stdlib ast fallback directly for Python files
+                if str(file_path).endswith('.py'):
+                    try:
+                        from analyzer.ast_extractor import _extract_python_ast_fallback
+                        fallback_result = _extract_python_ast_fallback(content, rel_path)
+                        if fallback_result:
+                            ast_data[rel_path] = fallback_result
+                            continue
+                    except Exception:
+                        pass
                 print(f"Warning: Failed to parse {rel_path}: {e}")
         
         return ast_data, file_contents

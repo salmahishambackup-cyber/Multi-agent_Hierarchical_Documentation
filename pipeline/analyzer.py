@@ -69,6 +69,16 @@ class Analyzer:
                     ast_data[rel_path] = ast_info
                     all_modules.append(rel_path)
             except Exception as e:
+                # Safety-net: try stdlib ast fallback directly
+                try:
+                    from analyzer.ast_extractor import _extract_python_ast_fallback
+                    fallback_result = _extract_python_ast_fallback(content, rel_path)
+                    if fallback_result:
+                        ast_data[rel_path] = fallback_result
+                        all_modules.append(rel_path)
+                        continue
+                except Exception:
+                    pass
                 print(f"Warning: Failed to parse {rel_path}: {e}")
         
         # Save AST artifact
