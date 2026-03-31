@@ -77,8 +77,8 @@ class Analyzer:
                         ast_data[rel_path] = fallback_result
                         all_modules.append(rel_path)
                         continue
-                except Exception:
-                    pass
+                except Exception as fallback_err:
+                    print(f"Warning: stdlib fallback also failed for {rel_path}: {fallback_err}")
                 print(f"Warning: Failed to parse {rel_path}: {e}")
         
         # Save AST artifact

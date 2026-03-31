@@ -273,8 +273,8 @@ class StructuralAgent:
                         if fallback_result:
                             ast_data[rel_path] = fallback_result
                             continue
-                    except Exception:
-                        pass
+                    except Exception as fallback_err:
+                        print(f"Warning: stdlib fallback also failed for {rel_path}: {fallback_err}")
                 print(f"Warning: Failed to parse {rel_path}: {e}")
         
         return ast_data, file_contents

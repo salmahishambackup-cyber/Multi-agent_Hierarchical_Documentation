@@ -292,8 +292,10 @@ def extract_ast_info(file_path: str, content: bytes, repo_root: str = None) -> d
     # Try tree-sitter first
     try:
         parser = get_parser(language)
-    except Exception:
-        # get_parser() may raise (e.g. tree-sitter version mismatch)
+    except Exception as exc:
+        # get_parser() may raise (e.g. tree-sitter version mismatch);
+        # fall through to stdlib fallback for Python files
+        print(f"Note: tree-sitter unavailable for {language} ({exc}), using stdlib fallback")
         parser = None
 
     if parser is not None:
